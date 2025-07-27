@@ -1,0 +1,2373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>🚛 WGIS Live Hub Mobile</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WGIS Hub">
+    <meta name="theme-color" content="#1976d2">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html {
+            height: 100%;
+            height: -webkit-fill-available;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            height: 100vh;
+            height: -webkit-fill-available;
+            overflow-x: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .mobile-header {
+            background: linear-gradient(135deg, #1976d2, #42a5f5);
+            color: white;
+            padding: env(safe-area-inset-top, 10px) 15px 15px 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .header-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .firebase-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.offline {
+            background: #f44336;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .date-picker-compact {
+            padding: 8px 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9);
+            font-weight: 600;
+            font-size: 0.9rem;
+            width: 160px;
+            margin-right: 8px;
+        }
+        
+        .header-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .header-btn:active {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .mobile-tabs {
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            border-radius: 8px;
+            padding: 2px;
+        }
+        
+        .mobile-tab {
+            flex: 1;
+            padding: 8px 4px;
+            text-align: center;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .mobile-tab.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+        
+        .main-container {
+            height: calc(100vh - 140px);
+            height: calc(-webkit-fill-available - 140px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 0;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 15px;
+            min-height: 100%;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Mobile Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 8px 6px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            border-left: 3px solid #1976d2;
+        }
+        
+        .stat-number {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 2px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-weight: 600;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+        }
+        
+        /* Mobile Run Cards */
+        .runs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .run-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            border-left: 4px solid #e0e0e0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .run-card.available {
+            border-left-color: #2196f3;
+            background: linear-gradient(90deg, #fff 0%, #f3f8ff 100%);
+        }
+        
+        .run-card.claimed {
+            border-left-color: #4caf50;
+            background: linear-gradient(90deg, #fff 0%, #f8fff8 100%);
+        }
+        
+        .run-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .run-number {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1976d2;
+        }
+        
+        .run-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+            text-transform: uppercase;
+        }
+        
+        .run-status.available {
+            background: #2196f3;
+        }
+        
+        .run-status.claimed {
+            background: #4caf50;
+        }
+        
+        .run-driver {
+            font-size: 0.9rem;
+            color: #4caf50;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .run-progress {
+            margin: 12px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 6px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #81c784);
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .job-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .job-stat {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .job-stat-number {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        
+        .job-stat-number.pending { color: #2196f3; }
+        .job-stat-number.started { color: #ff9800; }
+        .job-stat-number.completed { color: #4caf50; }
+        .job-stat-number.failed { color: #f44336; }
+        
+        .job-stat-label {
+            font-size: 0.65rem;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .run-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .mobile-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-height: 44px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-unclaim {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-unclaim:active {
+            background: #d32f2f;
+        }
+        
+        .btn-view {
+            background: #1976d2;
+            color: white;
+        }
+        
+        .btn-view:active {
+            background: #1565c0;
+        }
+        
+        /* Mobile Job Cards */
+        .job-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .job-card {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            border-left: 4px solid #e0e0e0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .job-card.pending {
+            border-left-color: #2196f3;
+            background: linear-gradient(90deg, #fff 0%, #f3f8ff 100%);
+        }
+        
+        .job-card.started {
+            border-left-color: #ff9800;
+            background: linear-gradient(90deg, #fff 0%, #fff8e1 100%);
+        }
+        
+        .job-card.completed {
+            border-left-color: #4caf50;
+            background: linear-gradient(90deg, #fff 0%, #f8fff8 100%);
+        }
+        
+        .job-card.failed {
+            border-left-color: #f44336;
+            background: linear-gradient(90deg, #fff 0%, #fff5f5 100%);
+        }
+        
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .job-status-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+        
+        .job-number {
+            font-weight: 600;
+            color: #1976d2;
+            font-size: 0.9rem;
+            line-height: 1.3;
+        }
+        
+        .job-status-badge {
+            padding: 3px 6px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+            text-transform: uppercase;
+        }
+        
+        .job-status-badge.pending { background: #2196f3; }
+        .job-status-badge.started { background: #ff9800; }
+        .job-status-badge.completed { background: #4caf50; }
+        .job-status-badge.failed { background: #f44336; }
+        
+        .job-details {
+            margin-bottom: 0;
+        }
+        
+        .job-customer {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        
+        .job-info {
+            color: #666;
+            font-size: 0.85rem;
+            line-height: 1.3;
+            margin-bottom: 2px;
+        }
+        
+        .job-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .job-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            min-height: 36px;
+            flex: 1;
+            min-width: 70px;
+        }
+        
+        .btn-edit { background: #ff9800; color: white; }
+        .btn-start { background: #4caf50; color: white; }
+        .btn-complete { background: #2e7d32; color: white; }
+        .btn-fail { background: #f44336; color: white; }
+        .btn-photos { background: #9c27b0; color: white; }
+        .btn-call { background: #2196f3; color: white; }
+        .btn-reset { background: #795548; color: white; }
+        
+        .job-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .job-btn-small {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            min-height: 24px;
+            background: #ff9800;
+            color: white;
+        }
+        
+        .job-btn-small:active {
+            transform: scale(0.95);
+            background: #f57c00;
+        }
+        
+        /* Mobile Filters */
+        .mobile-filters {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .filter-select {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+        }
+        
+        /* Mobile Truck Management */
+        .truck-section {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1976d2;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: #1976d2;
+            font-size: 1.2rem;
+            padding: 4px;
+            min-height: 44px;
+            min-width: 44px;
+        }
+        
+        .truck-form {
+            display: none;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .truck-form.expanded {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            min-height: 44px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+        
+        .btn-primary {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            width: 100%;
+            min-height: 44px;
+        }
+        
+        .btn-primary:active {
+            background: #1565c0;
+        }
+        
+        .truck-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .truck-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .truck-info h4 {
+            margin-bottom: 2px;
+            color: #1976d2;
+            font-size: 0.9rem;
+        }
+        
+        .truck-info span {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .truck-actions {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .btn-small {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-height: 32px;
+        }
+        
+        .btn-edit { background: #ff9800; color: white; }
+        .btn-delete { background: #f44336; color: white; }
+        
+        /* Mobile Modals */
+        .mobile-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 20px auto;
+            border-radius: 12px;
+            width: calc(100% - 40px);
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .modal-header {
+            padding: 20px 20px 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1976d2;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #666;
+            padding: 4px;
+            min-height: 44px;
+            min-width: 44px;
+        }
+        
+        .modal-body {
+            padding: 0 20px 20px 20px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            flex: 1;
+            min-height: 44px;
+        }
+        
+        .btn-save {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            flex: 2;
+            min-height: 44px;
+        }
+        
+        /* Photo Gallery */
+        .photo-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .photo-item {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .photo-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+        
+        .photo-caption {
+            padding: 8px;
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+            background: white;
+        }
+        
+        /* Loading States */
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .error {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .success {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        /* Pull to Refresh */
+        .pull-refresh {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        
+        .pull-refresh.visible {
+            top: 20px;
+        }
+        
+        /* Swipe Actions */
+        .swipe-actions {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            display: flex;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .swipe-action {
+            width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        
+        .swipe-action.edit {
+            background: #ff9800;
+        }
+        
+        .swipe-action.delete {
+            background: #f44336;
+        }
+        
+        /* Safe Area */
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 0);
+        }
+        
+        /* Touch Feedback */
+        .touchable {
+            transition: all 0.1s ease;
+        }
+        
+        .touchable:active {
+            transform: scale(0.98);
+            opacity: 0.8;
+        }
+        
+        /* Haptic Feedback Class */
+        .haptic {
+            transition: all 0.1s ease;
+        }
+        
+        /* Run Jobs View */
+        .run-jobs-header {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .back-btn {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-right: 15px;
+            min-height: 44px;
+        }
+        
+        .back-btn:active {
+            background: #1565c0;
+        }
+        
+        .run-jobs-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1976d2;
+            margin: 0;
+        }
+        
+        .run-card-clickable {
+            cursor: pointer;
+        }
+        
+        .run-card-clickable:hover {
+            background: linear-gradient(90deg, #f8f9fa 0%, #e3f2fd 100%);
+        }
+        
+        /* Search Results */
+        .search-results {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .search-result-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid #1976d2;
+            cursor: pointer;
+        }
+        
+        .search-result-item:hover {
+            background: #e3f2fd;
+        }
+        
+        .search-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .search-result-title {
+            font-weight: 600;
+            color: #1976d2;
+        }
+        
+        .search-result-status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .search-result-details {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .search-result-summary {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        /* Passcode Protection */
+        .passcode-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1976d2, #42a5f5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .passcode-container {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 320px;
+            width: 90%;
+        }
+        
+        .passcode-header h2 {
+            color: #1976d2;
+            margin-bottom: 8px;
+            font-size: 1.5rem;
+        }
+        
+        .passcode-header p {
+            color: #666;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+        
+        .passcode-input-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .passcode-input {
+            flex: 1;
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            text-align: center;
+            letter-spacing: 4px;
+            font-weight: bold;
+        }
+        
+        .passcode-input:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+        
+        .passcode-btn {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        
+        .passcode-btn:active {
+            background: #1565c0;
+        }
+        
+        .passcode-error {
+            color: #f44336;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .main-app {
+            display: none;
+        }
+        
+        .main-app.unlocked {
+            display: block;
+        }
+
+        /* Hide scrollbars but keep functionality */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        
+        * {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Passcode Protection Overlay -->
+    <div class="passcode-overlay" id="passcodeOverlay">
+        <div class="passcode-container">
+            <div class="passcode-header">
+                <h2>🔒 Access Required</h2>
+                <p>Enter 4-digit passcode to continue</p>
+            </div>
+            <div class="passcode-input-container">
+                <input type="password" class="passcode-input" id="passcodeInput" maxlength="4" placeholder="••••">
+                <button class="passcode-btn" onclick="checkPasscode()">Enter</button>
+            </div>
+            <div class="passcode-error" id="passcodeError" style="display: none;">
+                Incorrect passcode. Please try again.
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-app" id="mainApp">
+    <div class="mobile-header">
+        <div class="header-top">
+            <div class="header-title">🚛 WGIS Hub</div>
+            <div class="firebase-status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Online</span>
+            </div>
+        </div>
+        
+        <div class="header-controls">
+            <input type="date" class="date-picker-compact" id="datePicker">
+            <button class="header-btn touchable" onclick="showSearchModal()">
+                🔍
+            </button>
+            <button class="header-btn touchable" onclick="refreshData()">
+                🔄
+            </button>
+        </div>
+        
+        <div class="mobile-tabs">
+            <div class="mobile-tab active touchable" onclick="showTab('overview')">📊 Overview</div>
+            <div class="mobile-tab touchable" onclick="showTab('failed')">❌ Failed</div>
+            <button class="header-btn touchable" onclick="showSettings()" style="margin-left: auto;">⚙️</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Overview Tab -->
+        <div class="tab-content active" id="overviewContent">
+            <div class="stats-grid" id="statsGrid"></div>
+            <div class="runs-list" id="overviewRuns"></div>
+        </div>
+
+        <!-- Run Jobs View -->
+        <div class="tab-content" id="runJobsContent">
+            <div class="run-jobs-header">
+                <button class="back-btn touchable" onclick="goBackToOverview()">← Back to Overview</button>
+                <h3 class="run-jobs-title" id="runJobsTitle">Run Jobs</h3>
+            </div>
+            <div class="job-list" id="runJobsList"></div>
+        </div>
+
+        <!-- Failed Deliveries Tab -->
+        <div class="tab-content" id="failedContent">
+            <div class="job-list" id="failedList"></div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="mobile-modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Settings</h3>
+                <button class="close-btn touchable" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="truck-section">
+                    <div class="section-title">
+                        🚛 Truck Management
+                        <button class="toggle-btn touchable" onclick="toggleTruckForm()">+</button>
+                    </div>
+                    <div class="truck-form" id="truckForm">
+                        <div class="form-group">
+                            <label class="form-label">Truck Registration</label>
+                            <input type="text" class="form-input" id="truckRego" placeholder="e.g., 123 ABC">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Driver Phone</label>
+                            <input type="text" class="form-input" id="truckPhone" placeholder="e.g., 0412345678">
+                        </div>
+                        <button class="btn-primary touchable" onclick="addTruck()">Add Truck</button>
+                    </div>
+                    <div class="truck-list" id="truckList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div class="mobile-modal" id="searchModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Search Jobs</h3>
+                <button class="close-btn touchable" onclick="closeModal('searchModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Search by:</label>
+                    <input type="text" class="form-input" id="searchInput" placeholder="Customer name, job number, address...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Filter by Status:</label>
+                    <select class="form-input" id="searchStatusFilter">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="started">Started</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Search Date Range:</label>
+                    <select class="form-input" id="searchDateRange">
+                        <option value="today">Today Only</option>
+                        <option value="week">Last 7 Days</option>
+                        <option value="month">Last 30 Days</option>
+                        <option value="all">All Dates</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-cancel touchable" onclick="closeModal('searchModal')">Cancel</button>
+                    <button class="btn-save touchable" onclick="performSearch()">Search</button>
+                </div>
+                <div class="search-results" id="searchResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Job Modal -->
+    <div class="mobile-modal" id="editJobModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Job</h3>
+                <button class="close-btn touchable" onclick="closeModal('editJobModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Job Number</label>
+                    <input type="text" class="form-input" id="editJobNumber" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select class="form-input" id="editJobStatus">
+                        <option value="pending">Pending</option>
+                        <option value="started">Started</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Customer Name</label>
+                    <input type="text" class="form-input" id="editCustomerName">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Address</label>
+                    <input type="text" class="form-input" id="editAddress">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-input" id="editPhone">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Product</label>
+                    <input type="text" class="form-input" id="editProduct">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-input" id="editNotes" rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-cancel touchable" onclick="closeModal('editJobModal')">Cancel</button>
+                    <button class="btn-save touchable" onclick="saveJobChanges()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photo Modal -->
+    <div class="mobile-modal" id="photoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Delivery Photos</h3>
+                <button class="close-btn touchable" onclick="closeModal('photoModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="photo-gallery" id="photoGallery"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pull to Refresh Indicator -->
+    <div class="pull-refresh" id="pullRefresh">
+        🔄 Release to refresh
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBTPg2rlz0MvkYH9H-nEpIkPQ0WGDdEr8M",
+            authDomain: "wgis-fb191.firebaseapp.com",
+            projectId: "wgis-fb191",
+            storageBucket: "wgis-fb191.firebasestorage.app",
+            messagingSenderId: "858064992862",
+            appId: "1:858064992862:android:6c50005973aa483b4a52cf"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // Global state
+        let currentDate = new Date().toISOString().split('T')[0];
+        let allRuns = {};
+        let allJobs = [];
+        let allTrucks = [];
+        let currentEditingJob = null;
+        let isRefreshing = false;
+        let isUnlocked = false;
+        
+        // Passcode protection
+        const PASSCODE = '1289';
+        
+        // Default trucks
+        const defaultTrucks = [
+            { rego: '532 RXW', phone: '' },
+            { rego: '660 WWG', phone: '' },
+            { rego: '723 VMV', phone: '' },
+            { rego: 'XQ44 TB', phone: '' },
+            { rego: 'RENTAL TRUCK 1', phone: '' },
+            { rego: 'RENTAL TRUCK 2', phone: '' },
+            { rego: 'UTE', phone: '' }
+        ];
+
+        // Passcode functions
+        function checkPasscode() {
+            const input = document.getElementById('passcodeInput');
+            const error = document.getElementById('passcodeError');
+            const enteredCode = input.value.trim();
+            
+            if (enteredCode === PASSCODE) {
+                unlockApp();
+            } else {
+                showPasscodeError();
+                input.value = '';
+                input.focus();
+            }
+        }
+        
+        function unlockApp() {
+            isUnlocked = true;
+            document.getElementById('passcodeOverlay').style.display = 'none';
+            document.getElementById('mainApp').classList.add('unlocked');
+            
+            // Save unlock status for session
+            sessionStorage.setItem('wgisUnlocked', 'true');
+            
+            // Initialize the app
+            initializeApp();
+        }
+        
+        function showPasscodeError() {
+            const error = document.getElementById('passcodeError');
+            error.style.display = 'block';
+            setTimeout(() => {
+                error.style.display = 'none';
+            }, 3000);
+        }
+        
+        function checkUnlockStatus() {
+            const unlocked = sessionStorage.getItem('wgisUnlocked');
+            if (unlocked === 'true') {
+                unlockApp();
+            } else {
+                // Focus on passcode input
+                setTimeout(() => {
+                    document.getElementById('passcodeInput').focus();
+                }, 100);
+            }
+        }
+
+        // Initialize app
+        function initializeApp() {
+            document.getElementById('datePicker').value = currentDate;
+            initializeFirebase();
+            loadTrucks();
+            loadData();
+            setupRealtimeListeners();
+            setupPullToRefresh();
+            setupTouchHandlers();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                if (isUnlocked) {
+                    loadData();
+                    updateFirebaseStatus();
+                }
+            }, 30000);
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            checkUnlockStatus();
+            
+            // Add enter key support for passcode
+            document.getElementById('passcodeInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    checkPasscode();
+                }
+            });
+        });
+
+        // Continue with Firebase and core functions...
+        function initializeFirebase() {
+            updateFirebaseStatus();
+            
+            db.enableNetwork().then(() => {
+                updateFirebaseStatus(true);
+                console.log('Firebase connected');
+            }).catch((error) => {
+                updateFirebaseStatus(false);
+                console.error('Firebase connection failed:', error);
+            });
+        }
+
+        function updateFirebaseStatus(isConnected = true) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            if (isConnected) {
+                statusDot.classList.remove('offline');
+                statusText.textContent = 'Online';
+            } else {
+                statusDot.classList.add('offline');
+                statusText.textContent = 'Offline';
+            }
+        }
+
+        // Setup real-time listeners
+        function setupRealtimeListeners() {
+            const docRef = db.collection('daily_runs').doc(currentDate);
+            
+            docRef.onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    allRuns = data.runs || {};
+                    processJobsData();
+                    updateAllDisplays();
+                } else {
+                    allRuns = {};
+                    allJobs = [];
+                    updateAllDisplays();
+                }
+            }, (error) => {
+                console.error('Real-time listener error:', error);
+                updateFirebaseStatus(false);
+            });
+        }
+
+        // Load data
+        async function loadData() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            
+            try {
+                const docRef = db.collection('daily_runs').doc(currentDate);
+                const doc = await docRef.get();
+                
+                if (doc.exists) {
+                    const data = doc.data();
+                    allRuns = data.runs || {};
+                    processJobsData();
+                    updateAllDisplays();
+                } else {
+                    allRuns = {};
+                    allJobs = [];
+                    updateAllDisplays();
+                }
+                
+                updateFirebaseStatus(true);
+            } catch (error) {
+                console.error('Error loading data:', error);
+                updateFirebaseStatus(false);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+
+        // Process jobs data
+        function processJobsData() {
+            allJobs = [];
+            Object.entries(allRuns).forEach(([runKey, runData]) => {
+                if (runData.jobs && Array.isArray(runData.jobs)) {
+                    runData.jobs.forEach((job, index) => {
+                        allJobs.push({
+                            ...job,
+                            runKey: runKey,
+                            runNumber: runData.run_number || runKey,
+                            jobIndex: index,
+                            driverName: runData.driver_name || runData.claimed_by || 'Unassigned'
+                        });
+                    });
+                }
+            });
+        }
+
+        // Update all displays
+        function updateAllDisplays() {
+            updateOverviewTab();
+            updateFailedTab();
+        }
+
+        // Tab management
+        function showTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.mobile-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + 'Content').classList.add('active');
+            
+            // Trigger haptic feedback
+            triggerHaptic();
+            
+            // Refresh specific tab data
+            switch(tabName) {
+                case 'overview':
+                    updateOverviewTab();
+                    break;
+                case 'failed':
+                    updateFailedTab();
+                    break;
+            }
+        }
+
+        // Overview tab
+        function updateOverviewTab() {
+            updateStatsGrid();
+            updateOverviewRuns();
+        }
+
+        function updateStatsGrid() {
+            const stats = calculateStats();
+            const statsGrid = document.getElementById('statsGrid');
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.totalRuns}</div>
+                    <div class="stat-label">Runs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.totalJobs}</div>
+                    <div class="stat-label">Jobs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.completedJobs + stats.failedJobs}/${stats.totalJobs}</div>
+                    <div class="stat-label">Complete</div>
+                </div>
+            `;
+        }
+
+        function updateOverviewRuns() {
+            const runsContainer = document.getElementById('overviewRuns');
+            runsContainer.innerHTML = '';
+
+            if (Object.keys(allRuns).length === 0) {
+                runsContainer.innerHTML = '<div class="loading">No runs for ' + currentDate + '</div>';
+                return;
+            }
+
+            Object.entries(allRuns).forEach(([runKey, runData]) => {
+                const runCard = createMobileRunCard(runKey, runData, true);
+                runCard.classList.add('run-card-clickable');
+                runCard.onclick = () => viewRunJobs(runKey);
+                runsContainer.appendChild(runCard);
+            });
+        }
+
+        // Run Jobs View
+        function viewRunJobs(runKey) {
+            const runData = allRuns[runKey];
+            if (!runData) return;
+
+            // Update title
+            const runNumber = runData.run_number || runKey;
+            document.getElementById('runJobsTitle').textContent = `Run ${runNumber} Jobs`;
+
+            // Hide overview, show run jobs
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('runJobsContent').classList.add('active');
+
+            // Update jobs list
+            updateRunJobsList(runKey);
+            triggerHaptic();
+        }
+
+        function goBackToOverview() {
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('overviewContent').classList.add('active');
+            triggerHaptic();
+        }
+
+        function updateRunJobsList(runKey) {
+            const runJobsList = document.getElementById('runJobsList');
+            runJobsList.innerHTML = '';
+
+            const runData = allRuns[runKey];
+            if (!runData || !runData.jobs || runData.jobs.length === 0) {
+                runJobsList.innerHTML = '<div class="loading">No jobs in this run</div>';
+                return;
+            }
+
+            runData.jobs.forEach((job, index) => {
+                const jobWithRunInfo = {
+                    ...job,
+                    runKey: runKey,
+                    runNumber: runData.run_number || runKey,
+                    jobIndex: index,
+                    driverName: runData.driver_name || runData.claimed_by || 'Unassigned'
+                };
+                const jobCard = createMobileJobCard(jobWithRunInfo);
+                runJobsList.appendChild(jobCard);
+            });
+        }
+
+        function createMobileRunCard(runKey, runData, showActions = false) {
+            const runNumber = runData.run_number || runKey;
+            const jobCount = runData.job_count || (runData.jobs ? runData.jobs.length : 0);
+            const isAvailable = !runData.claimed_by;
+            const driverName = runData.driver_name || runData.claimed_by || 'Unassigned';
+
+            // Calculate job statistics
+            let jobStats = { pending: 0, started: 0, completed: 0, failed: 0 };
+            if (runData.jobs && Array.isArray(runData.jobs)) {
+                runData.jobs.forEach(job => {
+                    const status = job.status || 'pending';
+                    if (jobStats.hasOwnProperty(status)) {
+                        jobStats[status]++;
+                    }
+                });
+            }
+
+            const totalCompleted = jobStats.completed + jobStats.failed;
+            const progressPercentage = jobCount > 0 ? Math.round((totalCompleted / jobCount) * 100) : 0;
+
+            const runCard = document.createElement('div');
+            runCard.className = `run-card touchable ${isAvailable ? 'available' : 'claimed'}`;
+            
+            runCard.innerHTML = `
+                <div class="run-header">
+                    <div class="run-number">Run ${runNumber}</div>
+                    <div class="run-status ${isAvailable ? 'available' : 'claimed'}">
+                        ${isAvailable ? 'Available' : 'Claimed'}
+                    </div>
+                </div>
+                ${!isAvailable ? `<div class="run-driver">👤 ${driverName}</div>` : ''}
+                <div class="run-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progressPercentage}%"></div>
+                    </div>
+                    <div class="progress-text">${progressPercentage}% Complete (${totalCompleted}/${jobCount})</div>
+                </div>
+                <div class="job-stats">
+                    <div class="job-stat">
+                        <div class="job-stat-number pending">${jobStats.pending}</div>
+                        <div class="job-stat-label">Pending</div>
+                    </div>
+                    <div class="job-stat">
+                        <div class="job-stat-number started">${jobStats.started}</div>
+                        <div class="job-stat-label">Started</div>
+                    </div>
+                    <div class="job-stat">
+                        <div class="job-stat-number completed">${jobStats.completed}</div>
+                        <div class="job-stat-label">Done</div>
+                    </div>
+                    <div class="job-stat">
+                        <div class="job-stat-number failed">${jobStats.failed}</div>
+                        <div class="job-stat-label">Failed</div>
+                    </div>
+                </div>
+                ${!isAvailable ? `
+                    <div class="run-actions">
+                        <button class="mobile-btn btn-unclaim touchable" onclick="event.stopPropagation(); unclaimRun('${runKey}')">Unclaim</button>
+                    </div>
+                ` : ''}
+            `;
+
+            return runCard;
+        }
+
+        // Settings menu
+        function showSettings() {
+            document.getElementById('settingsModal').style.display = 'block';
+            triggerHaptic();
+        }
+
+        // Search functionality
+        function showSearchModal() {
+            document.getElementById('searchModal').style.display = 'block';
+            document.getElementById('searchInput').focus();
+            triggerHaptic();
+        }
+
+        async function performSearch() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const statusFilter = document.getElementById('searchStatusFilter').value;
+            const dateRange = document.getElementById('searchDateRange').value;
+            const searchResults = document.getElementById('searchResults');
+
+            if (!searchTerm && !statusFilter) {
+                searchResults.innerHTML = '<div class="loading">Please enter a search term or select a status</div>';
+                return;
+            }
+
+            searchResults.innerHTML = '<div class="loading">Searching database...</div>';
+
+            try {
+                const dates = getSearchDates(dateRange);
+                const results = [];
+                
+                // Search through all dates in range
+                for (const date of dates) {
+                    const docRef = db.collection('daily_runs').doc(date);
+                    const doc = await docRef.get();
+                    
+                    if (doc.exists) {
+                        const data = doc.data();
+                        const runs = data.runs || {};
+                        
+                        // Search through all runs for this date
+                        Object.entries(runs).forEach(([runKey, runData]) => {
+                            if (runData.jobs && Array.isArray(runData.jobs)) {
+                                runData.jobs.forEach((job, index) => {
+                                    const jobWithInfo = {
+                                        ...job,
+                                        runKey: runKey,
+                                        runNumber: runData.run_number || runKey,
+                                        jobIndex: index,
+                                        driverName: runData.driver_name || runData.claimed_by || 'Unassigned',
+                                        searchDate: date
+                                    };
+
+                                    const matchesSearch = !searchTerm || 
+                                        (job.name && job.name.toLowerCase().includes(searchTerm)) ||
+                                        (job.job_no && job.job_no.toString().toLowerCase().includes(searchTerm)) ||
+                                        (job.full_address && job.full_address.toLowerCase().includes(searchTerm)) ||
+                                        (job.address && job.address.toLowerCase().includes(searchTerm)) ||
+                                        (job.phone && job.phone.toString().includes(searchTerm)) ||
+                                        (job.product && job.product.toLowerCase().includes(searchTerm));
+
+                                    const matchesStatus = !statusFilter || job.status === statusFilter;
+
+                                    if (matchesSearch && matchesStatus) {
+                                        results.push(jobWithInfo);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+
+                // Sort results by date (most recent first)
+                results.sort((a, b) => new Date(b.searchDate) - new Date(a.searchDate));
+                
+                displaySearchResults(results);
+                triggerHaptic();
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                searchResults.innerHTML = '<div class="error">Error searching database. Please try again.</div>';
+            }
+        }
+
+        function getSearchDates(dateRange) {
+            const today = new Date();
+            const dates = [];
+            
+            switch (dateRange) {
+                case 'today':
+                    dates.push(formatDateForFirebase(today));
+                    break;
+                    
+                case 'week':
+                    for (let i = 0; i < 7; i++) {
+                        const date = new Date(today);
+                        date.setDate(date.getDate() - i);
+                        dates.push(formatDateForFirebase(date));
+                    }
+                    break;
+                    
+                case 'month':
+                    for (let i = 0; i < 30; i++) {
+                        const date = new Date(today);
+                        date.setDate(date.getDate() - i);
+                        dates.push(formatDateForFirebase(date));
+                    }
+                    break;
+                    
+                case 'all':
+                    // For 'all', we'll search the last 90 days to prevent excessive queries
+                    for (let i = 0; i < 90; i++) {
+                        const date = new Date(today);
+                        date.setDate(date.getDate() - i);
+                        dates.push(formatDateForFirebase(date));
+                    }
+                    break;
+                    
+                default:
+                    dates.push(formatDateForFirebase(today));
+            }
+            
+            return dates;
+        }
+
+        function formatDateForFirebase(date) {
+            return date.toISOString().split('T')[0];
+        }
+
+        function displaySearchResults(results) {
+            const searchResults = document.getElementById('searchResults');
+            
+            if (results.length === 0) {
+                searchResults.innerHTML = '<div class="loading">No jobs found matching your search</div>';
+                return;
+            }
+
+            searchResults.innerHTML = `<div class="search-result-summary">Found ${results.length} job(s)</div>`;
+            
+            results.forEach(job => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'search-result-item touchable';
+                resultItem.onclick = () => {
+                    navigateToJobDate(job.searchDate, job.runKey);
+                    closeModal('searchModal');
+                };
+
+                const statusClass = job.status || 'pending';
+                const phoneDisplay = formatPhoneNumber(job.phone);
+                const jobDate = new Date(job.searchDate).toLocaleDateString();
+
+                resultItem.innerHTML = `
+                    <div class="search-result-header">
+                        <div class="search-result-title">#${job.job_no || 'N/A'} - Run ${job.runNumber}</div>
+                        <div class="search-result-status job-status-badge ${statusClass}">${(job.status || 'pending').toUpperCase()}</div>
+                    </div>
+                    <div class="search-result-details">
+                        <div><strong>${job.name || 'Unknown Customer'}</strong></div>
+                        <div>📅 ${jobDate}</div>
+                        <div>📍 ${job.full_address || job.address || 'No address'}</div>
+                        ${job.product ? `<div>📦 ${job.product}</div>` : ''}
+                        ${phoneDisplay ? `<div>📞 ${phoneDisplay}</div>` : ''}
+                        <div>🚛 ${job.driverName}</div>
+                    </div>
+                `;
+
+                searchResults.appendChild(resultItem);
+            });
+        }
+
+        async function navigateToJobDate(searchDate, runKey) {
+            // Update the date picker
+            document.getElementById('datePicker').value = searchDate;
+            currentDate = searchDate;
+            
+            // Load data for the new date
+            await loadData();
+            
+            // Navigate to the specific run
+            if (allRuns[runKey]) {
+                viewRunJobs(runKey);
+            } else {
+                // If run doesn't exist on this date, just show overview
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById('overviewContent').classList.add('active');
+            }
+            
+            triggerHaptic();
+        }
+
+        // Add enter key support for search
+        document.addEventListener('DOMContentLoaded', function() {
+            // ... existing code ...
+            
+            // Add search input event listener
+            setTimeout(() => {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            performSearch();
+                        }
+                    });
+                }
+            }, 100);
+        });
+
+        function createMobileJobCard(job) {
+            const jobCard = document.createElement('div');
+            jobCard.className = `job-card touchable ${job.status || 'pending'}`;
+
+            const phoneDisplay = formatPhoneNumber(job.phone);
+            const timeInfo = getJobTimeInfo(job);
+
+            jobCard.innerHTML = `
+                <div class="job-header">
+                    <div class="job-number">#${job.job_no || 'N/A'} - Run ${job.runNumber}</div>
+                    <div class="job-status-container">
+                        <div class="job-status-badge ${job.status || 'pending'}">${(job.status || 'pending').toUpperCase()}</div>
+                        <button class="job-btn-small btn-edit touchable" onclick="editJob('${job.runKey}', ${job.jobIndex})">Edit</button>
+                    </div>
+                </div>
+                <div class="job-details">
+                    <div class="job-customer">${job.name || 'Unknown Customer'}</div>
+                    <div class="job-info">📍 ${job.full_address || job.address || 'No address'}</div>
+                    ${job.product ? `<div class="job-info">📦 ${job.product}</div>` : ''}
+                    ${phoneDisplay ? `<div class="job-info">📞 ${phoneDisplay}</div>` : ''}
+                    ${timeInfo ? `<div class="job-info">${timeInfo}</div>` : ''}
+                </div>
+            `;
+
+            return jobCard;
+        }
+
+        // Failed deliveries tab
+        function updateFailedTab() {
+            const failedJobs = allJobs.filter(job => job.status === 'failed');
+            const failedList = document.getElementById('failedList');
+            failedList.innerHTML = '';
+
+            if (failedJobs.length === 0) {
+                failedList.innerHTML = '<div class="loading">No failed deliveries</div>';
+                return;
+            }
+
+            failedJobs.forEach(job => {
+                const jobCard = createFailedJobCard(job);
+                failedList.appendChild(jobCard);
+            });
+        }
+
+        function createFailedJobCard(job) {
+            const jobCard = document.createElement('div');
+            jobCard.className = 'job-card failed touchable';
+
+            const phoneDisplay = formatPhoneNumber(job.phone);
+            const failedTime = job.failed_at ? 
+                `Failed ${new Date(job.failed_at.toDate ? job.failed_at.toDate() : job.failed_at).toLocaleDateString()}` : 
+                'Failed (unknown time)';
+
+            const hasPhotos = job.failure_details && job.failure_details.photo_urls && job.failure_details.photo_urls.length > 0;
+            const photoCount = hasPhotos ? job.failure_details.photo_urls.length : 0;
+
+            jobCard.innerHTML = `
+                <div class="job-header">
+                    <div class="job-number">#${job.job_no || 'N/A'} - Run ${job.runNumber}</div>
+                    <div class="job-status-badge failed">FAILED</div>
+                </div>
+                <div class="job-details">
+                    <div class="job-customer">${job.name || 'Unknown Customer'}</div>
+                    <div class="job-info">📍 ${job.full_address || job.address || 'No address'}</div>
+                    ${phoneDisplay ? `<div class="job-info">📞 ${phoneDisplay}</div>` : ''}
+                    <div class="job-info">🕒 ${failedTime}</div>
+                    <div class="job-info">🚛 ${job.driverName}</div>
+                    ${job.failure_reason ? `<div class="job-info">❌ ${job.failure_reason}</div>` : ''}
+                    ${hasPhotos ? `<div class="job-info">📷 ${photoCount} photo(s)</div>` : ''}
+                </div>
+                <div class="job-actions">
+                    <button class="job-btn btn-edit touchable" onclick="editJob('${job.runKey}', ${job.jobIndex})">Edit</button>
+                    ${hasPhotos ? `<button class="job-btn btn-photos touchable" onclick="viewJobPhotos('${job.runKey}', ${job.jobIndex})">Photos</button>` : ''}
+                    <button class="job-btn btn-reset touchable" onclick="updateJobStatus('${job.runKey}', ${job.jobIndex}, 'pending')">Reset</button>
+                    ${phoneDisplay ? `<button class="job-btn btn-call touchable" onclick="callCustomer('${phoneDisplay}', '${job.name}')">Call</button>` : ''}
+                </div>
+            `;
+
+            return jobCard;
+        }
+
+        // Utility functions
+        function calculateStats() {
+            const totalRuns = Object.keys(allRuns).length;
+            const totalJobs = allJobs.length;
+            const completedJobs = allJobs.filter(job => job.status === 'completed').length;
+            const failedJobs = allJobs.filter(job => job.status === 'failed').length;
+            const progressPercentage = totalJobs > 0 ? Math.round(((completedJobs + failedJobs) / totalJobs) * 100) : 0;
+
+            return { totalRuns, totalJobs, completedJobs, failedJobs, progressPercentage };
+        }
+
+        function formatPhoneNumber(phone) {
+            if (!phone || phone === 'STORE') return null;
+            const phoneStr = String(phone);
+            if (phoneStr.length === 9 && !phoneStr.startsWith('0')) {
+                return '0' + phoneStr;
+            }
+            return phoneStr;
+        }
+
+        function getJobTimeInfo(job) {
+            if (job.completed_at) {
+                const time = job.completed_at.toDate ? job.completed_at.toDate() : new Date(job.completed_at);
+                return `✅ Completed ${time.toLocaleDateString()}`;
+            }
+            if (job.failed_at) {
+                const time = job.failed_at.toDate ? job.failed_at.toDate() : new Date(job.failed_at);
+                return `❌ Failed ${time.toLocaleDateString()}`;
+            }
+            return null;
+        }
+
+
+        // Mobile-specific functions
+        function setupPullToRefresh() {
+            let startY = 0;
+            let currentY = 0;
+            let pulling = false;
+            const pullRefresh = document.getElementById('pullRefresh');
+            const mainContainer = document.querySelector('.main-container');
+
+            mainContainer.addEventListener('touchstart', (e) => {
+                if (mainContainer.scrollTop === 0) {
+                    startY = e.touches[0].clientY;
+                    pulling = true;
+                }
+            });
+
+            mainContainer.addEventListener('touchmove', (e) => {
+                if (!pulling) return;
+                
+                currentY = e.touches[0].clientY;
+                const pullDistance = currentY - startY;
+                
+                if (pullDistance > 0 && pullDistance < 100) {
+                    e.preventDefault();
+                    pullRefresh.style.top = `${20 + pullDistance}px`;
+                    pullRefresh.classList.add('visible');
+                }
+            });
+
+            mainContainer.addEventListener('touchend', () => {
+                if (pulling && currentY - startY > 60) {
+                    triggerHaptic();
+                    refreshData();
+                }
+                pulling = false;
+                pullRefresh.classList.remove('visible');
+                pullRefresh.style.top = '-60px';
+            });
+        }
+
+        function setupTouchHandlers() {
+            // Add touch feedback to all touchable elements
+            document.addEventListener('touchstart', (e) => {
+                if (e.target.classList.contains('touchable')) {
+                    e.target.style.transform = 'scale(0.95)';
+                    e.target.style.opacity = '0.8';
+                }
+            });
+
+            document.addEventListener('touchend', (e) => {
+                if (e.target.classList.contains('touchable')) {
+                    e.target.style.transform = '';
+                    e.target.style.opacity = '';
+                }
+            });
+
+            // Date picker change handler
+            document.getElementById('datePicker').addEventListener('change', function() {
+                const newDate = this.value;
+                if (newDate !== currentDate) {
+                    currentDate = newDate;
+                    setupRealtimeListeners();
+                    loadData();
+                }
+            });
+        }
+
+        function triggerHaptic() {
+            // Trigger haptic feedback on supported devices
+            if ('vibrate' in navigator) {
+                navigator.vibrate(10);
+            }
+        }
+
+        // Continue with all the core functions from the desktop version
+        // (truck management, job editing, modals, etc.)
+        // All optimized for mobile touch interaction
+
+        // Refresh data
+        function refreshData() {
+            currentDate = document.getElementById('datePicker').value;
+            setupRealtimeListeners();
+            loadData();
+            triggerHaptic();
+        }
+
+        // Modal functions
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            currentEditingJob = null;
+        }
+
+
+        // Truck Management
+        async function loadTrucks() {
+            try {
+                const trucksDoc = await db.collection('config').doc('trucks').get();
+                
+                if (trucksDoc.exists) {
+                    const trucksData = trucksDoc.data();
+                    if (trucksData.available_trucks) {
+                        allTrucks = trucksData.available_trucks.map(truck => 
+                            typeof truck === 'object' ? truck : { rego: truck, phone: '' }
+                        );
+                    } else {
+                        allTrucks = [...defaultTrucks];
+                    }
+                } else {
+                    allTrucks = [...defaultTrucks];
+                }
+                
+                updateTruckList();
+            } catch (error) {
+                console.error('Error loading trucks:', error);
+                allTrucks = [...defaultTrucks];
+                updateTruckList();
+            }
+        }
+
+        function updateTruckList() {
+            const truckList = document.getElementById('truckList');
+            truckList.innerHTML = '';
+            
+            allTrucks.forEach((truck, index) => {
+                const truckDiv = document.createElement('div');
+                truckDiv.className = 'truck-item';
+                truckDiv.innerHTML = `
+                    <div class="truck-info">
+                        <h4>${truck.rego}</h4>
+                        <span>${truck.phone || 'No phone'}</span>
+                    </div>
+                    <div class="truck-actions">
+                        <button class="btn-small btn-edit touchable" onclick="editTruck(${index})">Edit</button>
+                        <button class="btn-small btn-delete touchable" onclick="deleteTruck(${index})">Delete</button>
+                    </div>
+                `;
+                truckList.appendChild(truckDiv);
+            });
+        }
+
+        function toggleTruckForm() {
+            const form = document.getElementById('truckForm');
+            const button = event.target;
+            
+            if (form.classList.contains('expanded')) {
+                form.classList.remove('expanded');
+                button.textContent = '+';
+            } else {
+                form.classList.add('expanded');
+                button.textContent = '−';
+            }
+            triggerHaptic();
+        }
+
+        async function addTruck() {
+            const rego = document.getElementById('truckRego').value.trim();
+            const phone = document.getElementById('truckPhone').value.trim();
+            
+            if (!rego) {
+                alert('Please enter truck registration');
+                return;
+            }
+            
+            if (allTrucks.some(truck => truck.rego.toLowerCase() === rego.toLowerCase())) {
+                alert('Truck already exists');
+                return;
+            }
+            
+            const newTruck = { rego, phone };
+            allTrucks.push(newTruck);
+            
+            try {
+                await saveTrucksToFirebase();
+                updateTruckList();
+                
+                // Clear form
+                document.getElementById('truckRego').value = '';
+                document.getElementById('truckPhone').value = '';
+                
+                triggerHaptic();
+            } catch (error) {
+                console.error('Error adding truck:', error);
+                allTrucks.pop();
+                alert('Error adding truck');
+            }
+        }
+
+        function editTruck(index) {
+            const truck = allTrucks[index];
+            const newRego = prompt('Edit truck registration:', truck.rego);
+            const newPhone = prompt('Edit phone number:', truck.phone);
+            
+            if (newRego !== null) {
+                allTrucks[index] = { rego: newRego.trim(), phone: newPhone?.trim() || '' };
+                saveTrucksToFirebase();
+                updateTruckList();
+                triggerHaptic();
+            }
+        }
+
+        function deleteTruck(index) {
+            const truck = allTrucks[index];
+            if (confirm(`Delete truck ${truck.rego}?`)) {
+                allTrucks.splice(index, 1);
+                saveTrucksToFirebase();
+                updateTruckList();
+                triggerHaptic();
+            }
+        }
+
+        async function saveTrucksToFirebase() {
+            try {
+                await db.collection('config').doc('trucks').set({
+                    available_trucks: allTrucks
+                });
+            } catch (error) {
+                console.error('Error saving trucks:', error);
+                throw error;
+            }
+        }
+
+        // Job Editing
+        function editJob(runKey, jobIndex) {
+            const job = allRuns[runKey].jobs[jobIndex];
+            currentEditingJob = { runKey, jobIndex };
+            
+            // Populate the edit form
+            document.getElementById('editJobNumber').value = job.job_no || '';
+            document.getElementById('editJobStatus').value = job.status || 'pending';
+            document.getElementById('editCustomerName').value = job.name || '';
+            document.getElementById('editAddress').value = job.full_address || job.address || '';
+            document.getElementById('editPhone').value = job.phone || '';
+            document.getElementById('editProduct').value = job.product || '';
+            document.getElementById('editNotes').value = job.driver_notes || '';
+            
+            // Show modal
+            document.getElementById('editJobModal').style.display = 'block';
+            triggerHaptic();
+        }
+
+        async function saveJobChanges() {
+            if (!currentEditingJob) return;
+            
+            const { runKey, jobIndex } = currentEditingJob;
+            
+            const updatedJob = {
+                job_no: document.getElementById('editJobNumber').value,
+                status: document.getElementById('editJobStatus').value,
+                name: document.getElementById('editCustomerName').value,
+                full_address: document.getElementById('editAddress').value,
+                phone: document.getElementById('editPhone').value,
+                product: document.getElementById('editProduct').value,
+                driver_notes: document.getElementById('editNotes').value,
+                last_updated: new Date()
+            };
+            
+            try {
+                const docRef = db.collection('daily_runs').doc(currentDate);
+                const doc = await docRef.get();
+                
+                if (!doc.exists) {
+                    alert('Run data not found');
+                    return;
+                }
+                
+                const data = doc.data();
+                const runData = data.runs[runKey];
+                const updatedJobs = [...runData.jobs];
+                
+                updatedJobs[jobIndex] = {
+                    ...updatedJobs[jobIndex],
+                    ...updatedJob
+                };
+                
+                const updateData = {
+                    [`runs.${runKey}.jobs`]: updatedJobs,
+                    [`runs.${runKey}.last_job_update`]: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                await docRef.update(updateData);
+                closeModal('editJobModal');
+                triggerHaptic();
+                
+            } catch (error) {
+                console.error('Error updating job:', error);
+                alert('Error updating job');
+            }
+        }
+
+        // Job Status Updates
+        async function updateJobStatus(runKey, jobIndex, newStatus) {
+            try {
+                const docRef = db.collection('daily_runs').doc(currentDate);
+                const doc = await docRef.get();
+                
+                if (!doc.exists) {
+                    alert('Run data not found');
+                    return;
+                }
+                
+                const data = doc.data();
+                const runData = data.runs[runKey];
+                const updatedJobs = [...runData.jobs];
+                
+                const currentJob = updatedJobs[jobIndex];
+                const statusUpdate = {
+                    status: newStatus,
+                    last_updated: new Date()
+                };
+                
+                if (newStatus === 'completed') {
+                    statusUpdate.completed_at = new Date();
+                    statusUpdate.failed_at = null;
+                } else if (newStatus === 'failed') {
+                    statusUpdate.failed_at = new Date();
+                    statusUpdate.completed_at = null;
+                    if (!currentJob.failure_reason) {
+                        const reason = prompt('Enter failure reason (optional):');
+                        if (reason) {
+                            statusUpdate.failure_reason = reason;
+                        }
+                    }
+                } else if (newStatus === 'pending') {
+                    statusUpdate.completed_at = null;
+                    statusUpdate.failed_at = null;
+                    statusUpdate.failure_reason = '';
+                }
+                
+                updatedJobs[jobIndex] = {
+                    ...currentJob,
+                    ...statusUpdate
+                };
+                
+                const updateData = {
+                    [`runs.${runKey}.jobs`]: updatedJobs,
+                    [`runs.${runKey}.last_job_update`]: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                await docRef.update(updateData);
+                triggerHaptic();
+                
+            } catch (error) {
+                console.error('Error updating job status:', error);
+                alert('Error updating job status');
+            }
+        }
+
+        // Run Management
+        async function unclaimRun(runKey) {
+            if (!confirm(`Unclaim Run ${allRuns[runKey].run_number || runKey}?`)) {
+                return;
+            }
+
+            try {
+                const docRef = db.collection('daily_runs').doc(currentDate);
+                await docRef.update({
+                    [`runs.${runKey}.claimed_by`]: firebase.firestore.FieldValue.delete(),
+                    [`runs.${runKey}.driver_name`]: firebase.firestore.FieldValue.delete(),
+                    [`runs.${runKey}.claimed_at`]: firebase.firestore.FieldValue.delete(),
+                    [`runs.${runKey}.status`]: 'available'
+                });
+
+                triggerHaptic();
+            } catch (error) {
+                console.error('Error unclaiming run:', error);
+                alert('Error unclaiming run');
+            }
+        }
+
+
+        // Photo Viewing
+        async function viewJobPhotos(runKey, jobIndex) {
+            const job = allRuns[runKey].jobs[jobIndex];
+            
+            if (!job.failure_details || !job.failure_details.photo_urls || job.failure_details.photo_urls.length === 0) {
+                alert('No photos available for this job');
+                return;
+            }
+            
+            const photoGallery = document.getElementById('photoGallery');
+            photoGallery.innerHTML = '<div class="loading">Loading photos...</div>';
+            
+            document.getElementById('photoModal').style.display = 'block';
+            
+            try {
+                const photoUrls = job.failure_details.photo_urls;
+                photoGallery.innerHTML = '';
+                
+                photoUrls.forEach((url, index) => {
+                    const photoItem = document.createElement('div');
+                    photoItem.className = 'photo-item touchable';
+                    photoItem.innerHTML = `
+                        <img src="${url}" alt="Photo ${index + 1}" onclick="openFullPhoto('${url}')">
+                        <div class="photo-caption">Photo ${index + 1}</div>
+                    `;
+                    photoGallery.appendChild(photoItem);
+                });
+                
+                triggerHaptic();
+                
+            } catch (error) {
+                photoGallery.innerHTML = '<div class="error">Error loading photos</div>';
+                console.error('Error loading photos:', error);
+            }
+        }
+
+        function openFullPhoto(url) {
+            window.open(url, '_blank');
+        }
+
+        function callCustomer(phone, name) {
+            if (confirm(`Call ${name}?`)) {
+                window.open(`tel:${phone}`, '_self');
+            }
+        }
+
+        console.log('🚛 WGIS Mobile Hub initialized!');
+    </script>
+    </div> <!-- End main-app -->
+</body>
+</html>
