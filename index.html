@@ -357,6 +357,7 @@
             padding: 12px;
             border-left: 4px solid #e0e0e0;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
         }
         
         .job-card.pending {
@@ -382,15 +383,8 @@
         .job-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
             margin-bottom: 8px;
-        }
-        
-        .job-status-container {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 4px;
         }
         
         .job-number {
@@ -421,8 +415,8 @@
         .job-customer {
             font-size: 1rem;
             font-weight: 600;
-            margin-bottom: 6px;
             color: #333;
+            margin: 0;
         }
         
         .job-info {
@@ -474,6 +468,30 @@
         
         .job-btn-small:active {
             transform: scale(0.95);
+            background: #f57c00;
+        }
+        
+        .job-btn-floating {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #ff9800;
+            color: white;
+            border: none;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        
+        .job-btn-floating:active {
+            transform: scale(0.9);
             background: #f57c00;
         }
         
@@ -1845,15 +1863,12 @@
             const timeInfo = getJobTimeInfo(job);
 
             jobCard.innerHTML = `
+                <button class="job-btn-floating touchable" onclick="editJob('${job.runKey}', ${job.jobIndex})">✏️</button>
                 <div class="job-header">
-                    <div class="job-number">#${job.job_no || 'N/A'} - Run ${job.runNumber}</div>
-                    <div class="job-status-container">
-                        <div class="job-status-badge ${job.status || 'pending'}">${(job.status || 'pending').toUpperCase()}</div>
-                        <button class="job-btn-small btn-edit touchable" onclick="editJob('${job.runKey}', ${job.jobIndex})">Edit</button>
-                    </div>
+                    <div class="job-customer">${job.name || 'Unknown Customer'}</div>
+                    <div class="job-status-badge ${job.status || 'pending'}">${(job.status || 'pending').toUpperCase()}</div>
                 </div>
                 <div class="job-details">
-                    <div class="job-customer">${job.name || 'Unknown Customer'}</div>
                     <div class="job-info">📍 ${job.full_address || job.address || 'No address'}</div>
                     ${job.product ? `<div class="job-info">📦 ${job.product}</div>` : ''}
                     ${phoneDisplay ? `<div class="job-info">📞 ${phoneDisplay}</div>` : ''}
