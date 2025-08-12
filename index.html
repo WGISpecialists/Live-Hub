@@ -79,39 +79,75 @@
             50% { opacity: 0.5; }
         }
         
-        .header-controls {
+        .title-date-row {
             display: flex;
-            gap: 8px;
             align-items: center;
+            gap: 15px;
         }
         
-        .date-picker-compact {
-            padding: 8px 10px;
+        .date-picker-inline {
+            padding: 6px 10px;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             background: rgba(255,255,255,0.9);
             font-weight: 600;
-            font-size: 0.9rem;
-            width: 160px;
-            margin-right: 8px;
+            font-size: 0.85rem;
+            width: 140px;
         }
         
-        .header-btn {
+        .all-buttons-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .tab-btn.active {
+            background: rgba(255,255,255,0.9);
+            color: #1976d2;
+        }
+        
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .tab-btn.active:hover {
+            background: rgba(255,255,255,1);
+        }
+        
+        .all-buttons-row .action-btn {
             background: rgba(255,255,255,0.2);
             border: none;
             color: white;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.8rem;
-            min-height: 44px;
+            padding: 6px 8px;
+            border-radius: 50%;
+            font-size: 0.9rem;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
-            gap: 4px;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
         }
         
-        .header-btn:active {
+        .all-buttons-row .action-btn:hover {
             background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
         }
         
         .mobile-tabs {
@@ -143,9 +179,11 @@
         .main-container {
             height: calc(100vh - 140px);
             height: calc(-webkit-fill-available - 140px);
+            min-height: calc(100vh - 140px);
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             padding: 0;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
         }
         
         .tab-content {
@@ -163,7 +201,8 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
-            margin-bottom: 15px;
+            margin: 10px 0 15px 0;
+            padding: 0 5px;
         }
         
         .stat-card {
@@ -909,6 +948,15 @@
         
         .run-card-clickable {
             cursor: pointer;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        .run-card-clickable:active {
+            transform: scale(0.98);
+            background-color: #f5f5f5;
         }
         
         .run-card-clickable:hover {
@@ -1124,32 +1172,23 @@
     <div class="main-app" id="mainApp">
     <div class="mobile-header">
         <div class="header-top">
-            <div class="header-title">🚛 WGIS Hub</div>
+            <div class="title-date-row">
+                <div class="header-title">🚛 WGIS Hub</div>
+                <input type="date" class="date-picker-inline" id="datePicker">
+            </div>
             <div class="firebase-status">
                 <div class="status-dot" id="statusDot"></div>
                 <span id="statusText">Online</span>
             </div>
         </div>
         
-        <div class="header-controls">
-            <input type="date" class="date-picker-compact" id="datePicker">
-            <button class="header-btn touchable" onclick="showSearchModal()">
-                🔍
-            </button>
-            <button class="header-btn touchable" onclick="showDriverMessagesHistory()" title="Message History">
-                📧
-            </button>
-            <button class="header-btn touchable" onclick="refreshData()">
-                🔄
-            </button>
-            <button class="header-btn touchable" onclick="showSettings()">
-                ⚙️
-            </button>
-        </div>
-        
-        <div class="mobile-tabs">
-            <div class="mobile-tab active touchable" onclick="showTab('overview')">📊 Overview</div>
-            <div class="mobile-tab touchable" onclick="showTab('failed')">❌ Failed</div>
+        <div class="all-buttons-row">
+            <button class="tab-btn active touchable" onclick="showTab('overview')">📊 Overview</button>
+            <button class="tab-btn touchable" onclick="showTab('failed')">❌ Failed</button>
+            <button class="action-btn touchable" onclick="showSearchModal()" title="Search">🔍</button>
+            <button class="action-btn touchable" onclick="showDriverMessagesHistory()" title="Messages">📧</button>
+            <button class="action-btn touchable" onclick="refreshData()" title="Refresh">🔄</button>
+            <button class="action-btn touchable" onclick="showSettings()" title="Settings">⚙️</button>
         </div>
     </div>
 
@@ -1822,8 +1861,8 @@
 
         // Tab management
         function showTab(tabName) {
-            // Update tab buttons
-            document.querySelectorAll('.mobile-tab').forEach(tab => tab.classList.remove('active'));
+            // Update tab buttons (now using .tab-btn class)
+            document.querySelectorAll('.tab-btn').forEach(tab => tab.classList.remove('active'));
             event.target.classList.add('active');
             
             // Update tab content
@@ -1882,7 +1921,26 @@
             Object.entries(allRuns).forEach(([runKey, runData]) => {
                 const runCard = createMobileRunCard(runKey, runData, true);
                 runCard.classList.add('run-card-clickable');
-                runCard.onclick = () => viewRunJobs(runKey);
+                
+                // Enhanced click handling for iOS compatibility
+                runCard.style.cursor = 'pointer';
+                runCard.style.webkitTapHighlightColor = 'rgba(0,0,0,0.1)';
+                
+                // Multiple event handlers for better iOS compatibility
+                runCard.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Run card clicked:', runKey);
+                    viewRunJobs(runKey);
+                };
+                
+                runCard.ontouchend = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Run card touched:', runKey);
+                    viewRunJobs(runKey);
+                };
+                
                 runsContainer.appendChild(runCard);
             });
         }
