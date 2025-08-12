@@ -97,23 +97,25 @@
         
         .all-buttons-row {
             display: flex;
-            gap: 6px;
+            gap: 4px;
             align-items: center;
             margin-top: 8px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow-x: auto;
         }
         
         .tab-btn {
-            padding: 6px 12px;
+            padding: 5px 10px;
             border: none;
             border-radius: 20px;
             background: rgba(255,255,255,0.2);
             color: white;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
             flex-shrink: 0;
+            white-space: nowrap;
         }
         
         .tab-btn.active {
@@ -133,11 +135,11 @@
             background: rgba(255,255,255,0.2);
             border: none;
             color: white;
-            padding: 6px 8px;
+            padding: 4px 6px;
             border-radius: 50%;
-            font-size: 0.9rem;
-            width: 32px;
-            height: 32px;
+            font-size: 0.85rem;
+            width: 28px;
+            height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1183,8 +1185,8 @@
         </div>
         
         <div class="all-buttons-row">
-            <button class="tab-btn active touchable" onclick="showTab('overview')">📊 Overview</button>
-            <button class="tab-btn touchable" onclick="showTab('failed')">❌ Failed</button>
+            <button class="tab-btn active touchable" onclick="showTab('overview')">📊 Home</button>
+            <button class="tab-btn touchable" onclick="showTab('failed')">❌</button>
             <button class="action-btn touchable" onclick="showSearchModal()" title="Search">🔍</button>
             <button class="action-btn touchable" onclick="showDriverMessagesHistory()" title="Messages">📧</button>
             <button class="action-btn touchable" onclick="refreshData()" title="Refresh">🔄</button>
@@ -1922,23 +1924,54 @@
                 const runCard = createMobileRunCard(runKey, runData, true);
                 runCard.classList.add('run-card-clickable');
                 
-                // Enhanced click handling for iOS compatibility
+                // Enhanced click handling for iOS compatibility with scroll detection
                 runCard.style.cursor = 'pointer';
                 runCard.style.webkitTapHighlightColor = 'rgba(0,0,0,0.1)';
                 
-                // Multiple event handlers for better iOS compatibility
-                runCard.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Run card clicked:', runKey);
-                    viewRunJobs(runKey);
+                // Track touch movement to distinguish between tap and scroll
+                let touchStartY = 0;
+                let touchStartX = 0;
+                let touchStartTime = 0;
+                let hasMoved = false;
+                
+                runCard.ontouchstart = (e) => {
+                    touchStartY = e.touches[0].clientY;
+                    touchStartX = e.touches[0].clientX;
+                    touchStartTime = Date.now();
+                    hasMoved = false;
+                };
+                
+                runCard.ontouchmove = (e) => {
+                    const moveY = Math.abs(e.touches[0].clientY - touchStartY);
+                    const moveX = Math.abs(e.touches[0].clientX - touchStartX);
+                    
+                    // If moved more than 10px in any direction, it's a scroll gesture
+                    if (moveY > 10 || moveX > 10) {
+                        hasMoved = true;
+                    }
                 };
                 
                 runCard.ontouchend = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Run card touched:', runKey);
-                    viewRunJobs(runKey);
+                    const touchDuration = Date.now() - touchStartTime;
+                    
+                    // Only trigger if it was a quick tap (< 300ms) and no significant movement
+                    if (!hasMoved && touchDuration < 300) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Run card tapped (not scrolled):', runKey);
+                        viewRunJobs(runKey);
+                    }
+                };
+                
+                // Fallback click handler for non-touch devices
+                runCard.onclick = (e) => {
+                    // Only handle click if it wasn't a touch event
+                    if (e.pointerType !== 'touch') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Run card clicked:', runKey);
+                        viewRunJobs(runKey);
+                    }
                 };
                 
                 runsContainer.appendChild(runCard);
