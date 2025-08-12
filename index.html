@@ -875,6 +875,31 @@
             background: #1565c0;
         }
         
+        .run-action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+        
+        .action-btn {
+            background: rgba(25, 118, 210, 0.1);
+            border: 1px solid #1976d2;
+            color: #1976d2;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 1.2rem;
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .action-btn:active {
+            background: #1976d2;
+            color: white;
+        }
+        
         .run-jobs-title {
             font-size: 1.2rem;
             font-weight: 600;
@@ -964,11 +989,13 @@
         .passcode-container {
             background: white;
             border-radius: 16px;
-            padding: 30px;
+            padding: 30px 20px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             text-align: center;
-            max-width: 320px;
+            max-width: 350px;
             width: 90%;
+            box-sizing: border-box;
+            margin: 20px;
         }
         
         .passcode-header h2 {
@@ -985,12 +1012,14 @@
         
         .passcode-input-container {
             display: flex;
-            gap: 12px;
+            flex-direction: column;
+            gap: 16px;
             margin-bottom: 16px;
+            width: 100%;
         }
         
         .passcode-input {
-            flex: 1;
+            width: 100%;
             padding: 16px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
@@ -998,6 +1027,8 @@
             text-align: center;
             letter-spacing: 4px;
             font-weight: bold;
+            min-height: 50px;
+            box-sizing: border-box;
         }
         
         .passcode-input:focus {
@@ -1014,6 +1045,9 @@
             font-weight: 600;
             font-size: 1rem;
             cursor: pointer;
+            width: 100%;
+            min-height: 50px;
+            box-sizing: border-box;
         }
         
         .passcode-btn:active {
@@ -1043,6 +1077,30 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+        
+        /* Notification animations */
+        @keyframes slideDown {
+            from {
+                transform: translateX(-50%) translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Interactive map styles */
+        #locationMap {
+            position: relative;
+            touch-action: manipulation;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        #locationMap iframe {
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
     </style>
 </head>
 <body>
@@ -1054,7 +1112,7 @@
                 <p>Enter 4-digit passcode to continue</p>
             </div>
             <div class="passcode-input-container">
-                <input type="password" class="passcode-input" id="passcodeInput" maxlength="4" placeholder="••••">
+                <input type="tel" class="passcode-input" id="passcodeInput" maxlength="4" placeholder="••••" inputmode="numeric" autocomplete="off">
                 <button class="passcode-btn" onclick="checkPasscode()">Enter</button>
             </div>
             <div class="passcode-error" id="passcodeError" style="display: none;">
@@ -1078,15 +1136,20 @@
             <button class="header-btn touchable" onclick="showSearchModal()">
                 🔍
             </button>
+            <button class="header-btn touchable" onclick="showDriverMessagesHistory()" title="Message History">
+                📧
+            </button>
             <button class="header-btn touchable" onclick="refreshData()">
                 🔄
+            </button>
+            <button class="header-btn touchable" onclick="showSettings()">
+                ⚙️
             </button>
         </div>
         
         <div class="mobile-tabs">
             <div class="mobile-tab active touchable" onclick="showTab('overview')">📊 Overview</div>
             <div class="mobile-tab touchable" onclick="showTab('failed')">❌ Failed</div>
-            <button class="header-btn touchable" onclick="showSettings()" style="margin-left: auto;">⚙️</button>
         </div>
     </div>
 
@@ -1100,8 +1163,12 @@
         <!-- Run Jobs View -->
         <div class="tab-content" id="runJobsContent">
             <div class="run-jobs-header">
-                <button class="back-btn touchable" onclick="goBackToOverview()">← Back to Overview</button>
+                <button class="back-btn touchable" onclick="goBackToOverview()">← Back</button>
                 <h3 class="run-jobs-title" id="runJobsTitle">Run Jobs</h3>
+                <div class="run-action-buttons">
+                    <button class="action-btn touchable" onclick="sendMessageToCurrentRun()" title="Send Message">📧</button>
+                    <button class="action-btn touchable" onclick="requestLocationFromCurrentRun()" title="Request Location">📍</button>
+                </div>
             </div>
             <div class="job-list" id="runJobsList"></div>
         </div>
@@ -1244,6 +1311,119 @@
         </div>
     </div>
 
+    <!-- Status Change Modal -->
+    <div class="mobile-modal" id="statusChangeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Change Job Status</h3>
+                <button class="close-btn touchable" onclick="closeModal('statusChangeModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Current Status:</label>
+                    <div id="currentStatusDisplay" style="padding: 10px; background: #f8f9fa; border-radius: 6px; margin-bottom: 15px; font-weight: 600;"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Change to:</label>
+                    <div id="statusButtons" style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="btn-primary touchable" onclick="updateJobStatusFromModal('pending')" style="background: #2196f3;">PENDING</button>
+                        <button class="btn-primary touchable" onclick="updateJobStatusFromModal('started')" style="background: #ff9800;">STARTED</button>
+                        <button class="btn-primary touchable" onclick="updateJobStatusFromModal('completed')" style="background: #4caf50;">COMPLETED</button>
+                        <button class="btn-primary touchable" onclick="updateJobStatusFromModal('failed')" style="background: #f44336;">FAILED</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Failure Details Modal -->
+    <div class="mobile-modal" id="failureDetailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Failure Details</h3>
+                <button class="close-btn touchable" onclick="closeModal('failureDetailsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="failureDetailsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Driver Message Modal -->
+    <div class="mobile-modal" id="driverMessageModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">📧 Send Message to Driver</h3>
+                <button class="close-btn touchable" onclick="closeModal('driverMessageModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Sending to:</label>
+                    <div id="messageTargetInfo" style="padding: 10px; background: #f8f9fa; border-radius: 6px; margin-bottom: 15px; font-weight: 600;"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message:</label>
+                    <textarea id="messageText" placeholder="Enter your message to the driver..." style="width: 100%; min-height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
+                </div>
+                <div class="form-group">
+                    <button class="btn-primary touchable" onclick="sendDriverMessage()" style="width: 100%; margin-top: 10px;">📧 Send Message</button>
+                </div>
+                <div id="messageStatus" style="margin-top: 10px; font-size: 0.9rem; text-align: center;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Location Request Modal -->
+    <div class="mobile-modal" id="locationModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">📍 Driver Location</h3>
+                <button class="close-btn touchable" onclick="closeModal('locationModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Requesting from:</label>
+                    <div id="locationTargetInfo" style="padding: 10px; background: #f8f9fa; border-radius: 6px; margin-bottom: 15px; font-weight: 600;"></div>
+                </div>
+                <div class="form-group">
+                    <button class="btn-primary touchable" onclick="requestDriverLocation()" style="width: 100%; margin-bottom: 15px;">📍 Request Current Location</button>
+                </div>
+                <div id="locationStatus" style="margin-bottom: 15px; font-size: 0.9rem; text-align: center;"></div>
+                <div id="locationMapContainer" style="display: none;">
+                    <div id="locationMap" style="width: 100%; height: 300px; border: 1px solid #ddd; border-radius: 6px; position: relative; overflow: hidden;"></div>
+                    <div id="locationInfo" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Driver Messages History Modal -->
+    <div class="mobile-modal" id="messagesHistoryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">📧 Driver Messages History</h3>
+                <button class="close-btn touchable" onclick="closeModal('messagesHistoryModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Filter by Status:</label>
+                    <select id="messageFilterStatus" onchange="filterMessagesHistory()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 15px;">
+                        <option value="">All Messages</option>
+                        <option value="sent">Sent</option>
+                        <option value="acknowledged">Acknowledged</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div id="messagesHistoryList" style="max-height: 400px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 20px; color: #666;">Loading messages...</div>
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <button class="btn-primary touchable" onclick="refreshMessagesHistory()" style="width: 100%;">🔄 Refresh Messages</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Pull to Refresh Indicator -->
     <div class="pull-refresh" id="pullRefresh">
         🔄 Release to refresh
@@ -1271,11 +1451,13 @@
         const storage = firebase.storage();
 
         // Global state
-        let currentDate = new Date().toISOString().split('T')[0];
+        let currentDate = new Date().toLocaleDateString('en-CA'); // Format: YYYY-MM-DD in local timezone
         let allRuns = {};
         let allJobs = [];
         let allTrucks = [];
         let currentEditingJob = null;
+        let currentRunData = null;
+        let currentRunKey = null;
         let isRefreshing = false;
         let isUnlocked = false;
         
@@ -1297,15 +1479,38 @@
         function checkPasscode() {
             const input = document.getElementById('passcodeInput');
             const error = document.getElementById('passcodeError');
+            const button = document.querySelector('.passcode-btn');
             const enteredCode = input.value.trim();
             
-            if (enteredCode === PASSCODE) {
-                unlockApp();
-            } else {
-                showPasscodeError();
-                input.value = '';
-                input.focus();
-            }
+            // Visual feedback
+            input.style.borderColor = '#1976d2';
+            button.textContent = 'Checking...';
+            button.disabled = true;
+            
+            setTimeout(() => {
+                if (enteredCode === PASSCODE) {
+                    input.style.borderColor = '#4caf50';
+                    button.textContent = 'Access Granted ✓';
+                    button.style.background = '#4caf50';
+                    setTimeout(() => {
+                        unlockApp();
+                    }, 500);
+                } else {
+                    input.style.borderColor = '#f44336';
+                    button.textContent = 'Incorrect';
+                    button.style.background = '#f44336';
+                    showPasscodeError();
+                    
+                    setTimeout(() => {
+                        input.value = '';
+                        input.style.borderColor = '#e0e0e0';
+                        button.textContent = 'Enter';
+                        button.style.background = '#1976d2';
+                        button.disabled = false;
+                        input.focus();
+                    }, 1500);
+                }
+            }, 300);
         }
         
         function unlockApp() {
@@ -1362,10 +1567,25 @@
         document.addEventListener('DOMContentLoaded', function() {
             checkUnlockStatus();
             
-            // Add enter key support for passcode
-            document.getElementById('passcodeInput').addEventListener('keypress', function(e) {
+            // Add enter key support and auto-submit for passcode
+            const passcodeInput = document.getElementById('passcodeInput');
+            passcodeInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     checkPasscode();
+                }
+            });
+            
+            // Auto-submit when 4 digits are entered
+            passcodeInput.addEventListener('input', function(e) {
+                const value = e.target.value;
+                // Only allow numeric input
+                e.target.value = value.replace(/[^0-9]/g, '');
+                
+                // Auto-submit when 4 digits are entered
+                if (e.target.value.length === 4) {
+                    setTimeout(() => {
+                        checkPasscode();
+                    }, 100); // Small delay for better UX
                 }
             });
         });
@@ -1415,6 +1635,136 @@
                 console.error('Real-time listener error:', error);
                 updateFirebaseStatus(false);
             });
+            
+            // Setup communication listeners
+            setupCommunicationListeners();
+        }
+
+        // Communication Listeners (Message acknowledgments and location responses)
+        let communicationListenerUnsubscribe = null;
+        let lastCheckedCommands = new Set();
+
+        function setupCommunicationListeners() {
+            // Unsubscribe from previous listener if exists
+            if (communicationListenerUnsubscribe) {
+                communicationListenerUnsubscribe();
+            }
+            
+            // Listen to device_commands collection for acknowledgments and responses
+            communicationListenerUnsubscribe = db.collection('device_commands')
+                .where('source_device', '==', 'mobile_web')
+                .orderBy('data.timestamp', 'desc')
+                .limit(50)
+                .onSnapshot((snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'modified') {
+                            const data = change.doc.data();
+                            const commandId = change.doc.id;
+                            
+                            // Check for new message acknowledgments
+                            if (data.command === 'driver_message' && 
+                                data.acknowledged_at && 
+                                !lastCheckedCommands.has(commandId)) {
+                                
+                                lastCheckedCommands.add(commandId);
+                                showMessageAcknowledgmentNotification(data);
+                            }
+                            
+                            // Note: Location responses are handled by the specific monitoring function
+                            // No need to process them here to avoid double notifications
+                        }
+                    });
+                }, (error) => {
+                    console.error('Communication listener error:', error);
+                });
+            
+            // Initialize with existing acknowledged messages to avoid duplicate notifications
+            initializeAcknowledgmentTracking();
+        }
+
+        function initializeAcknowledgmentTracking() {
+            // Get recent commands to populate our tracking set
+            db.collection('device_commands')
+                .where('source_device', '==', 'mobile_web')
+                .where('command', '==', 'driver_message')
+                .orderBy('data.timestamp', 'desc')
+                .limit(100)
+                .get()
+                .then((snapshot) => {
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        if (data.acknowledged_at) {
+                            lastCheckedCommands.add(doc.id);
+                        }
+                    });
+                    console.log(`Initialized acknowledgment tracking with ${lastCheckedCommands.size} existing messages`);
+                })
+                .catch((error) => {
+                    console.error('Error initializing acknowledgment tracking:', error);
+                });
+        }
+
+        function showMessageAcknowledgmentNotification(commandData) {
+            try {
+                const deviceId = commandData.target_device || 'Unknown device';
+                const message = commandData.data?.message || 'Message';
+                const shortMessage = message.length > 30 ? message.substring(0, 30) + '...' : message;
+                const shortDevice = deviceId.length > 15 ? deviceId.substring(0, 15) + '...' : deviceId;
+                
+                // Show notification
+                showMobileNotification(`✅ Message acknowledged by ${shortDevice}: "${shortMessage}"`, 'success');
+                
+                // Play notification sound
+                playNotificationSound();
+                
+                // Haptic feedback
+                triggerHaptic();
+                
+            } catch (error) {
+                console.error('Error showing acknowledgment notification:', error);
+            }
+        }
+
+        function showMobileNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 10000;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 0.9rem;
+                max-width: 90%;
+                text-align: center;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideDown 0.3s ease;
+            `;
+            
+            // Set colors based on type
+            if (type === 'success') {
+                notification.style.background = '#4caf50';
+                notification.style.color = 'white';
+            } else if (type === 'error') {
+                notification.style.background = '#f44336';
+                notification.style.color = 'white';
+            } else {
+                notification.style.background = '#2196f3';
+                notification.style.color = 'white';
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 4000);
         }
 
         // Load data
@@ -1542,9 +1892,33 @@
             const runData = allRuns[runKey];
             if (!runData) return;
 
+            // Set current run data for communication functions
+            // Always target tablet device for messaging/location requests
+            let tabletDeviceId = null;
+            if (runData.claimed_by) {
+                if (runData.claimed_by.includes('_phone')) {
+                    tabletDeviceId = runData.claimed_by.replace('_phone', '_tablet');
+                } else if (runData.claimed_by.includes('_tablet')) {
+                    tabletDeviceId = runData.claimed_by;
+                } else {
+                    // If no suffix, assume it's the base device name and add _tablet
+                    tabletDeviceId = runData.claimed_by + '_tablet';
+                }
+            }
+            
+            console.log('Device conversion:', runData.claimed_by, '->', tabletDeviceId);
+            
+            currentRunData = {
+                ...runData,
+                runNumber: runData.run_number || runKey,
+                claimed_by: runData.claimed_by,
+                tablet_device_id: tabletDeviceId
+            };
+            currentRunKey = runKey;
+
             // Update title
             const runNumber = runData.run_number || runKey;
-            document.getElementById('runJobsTitle').textContent = `Run ${runNumber} Jobs`;
+            document.getElementById('runJobsTitle').textContent = `${runNumber}`;
 
             // Hide overview, show run jobs
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -1556,6 +1930,10 @@
         }
 
         function goBackToOverview() {
+            // Clear current run data
+            currentRunData = null;
+            currentRunKey = null;
+            
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById('overviewContent').classList.add('active');
             triggerHaptic();
@@ -1855,24 +2233,37 @@
             }, 100);
         });
 
+        // Helper function to get the actual display status (accounts for failure_details)
+        function getDisplayStatus(job) {
+            // Check for failure indicators
+            if (job.failure_details || job.failed_at || 
+                (job.failure_type && job.failure_type.includes('cancelled'))) {
+                return 'failed';
+            }
+            return job.status || 'pending';
+        }
+
         function createMobileJobCard(job) {
+            const displayStatus = getDisplayStatus(job);
             const jobCard = document.createElement('div');
-            jobCard.className = `job-card touchable ${job.status || 'pending'}`;
+            jobCard.className = `job-card touchable ${displayStatus}`;
 
             const phoneDisplay = formatPhoneNumber(job.phone);
             const timeInfo = getJobTimeInfo(job);
+            const isFailedJob = displayStatus === 'failed';
 
             jobCard.innerHTML = `
                 <button class="job-btn-floating touchable" onclick="editJob('${job.runKey}', ${job.jobIndex})">✏️</button>
                 <div class="job-header">
                     <div class="job-customer">${job.name || 'Unknown Customer'}</div>
-                    <div class="job-status-badge ${job.status || 'pending'}">${(job.status || 'pending').toUpperCase()}</div>
+                    <div class="job-status-badge ${displayStatus} touchable" onclick="changeJobStatus('${job.runKey}', ${job.jobIndex}, '${displayStatus}')">${displayStatus.toUpperCase()}</div>
                 </div>
-                <div class="job-details">
+                <div class="job-details" ${isFailedJob ? `onclick="showFailureDetails('${job.runKey}', ${job.jobIndex})"` : ''}>
                     <div class="job-info">📍 ${job.full_address || job.address || 'No address'}</div>
                     ${job.product ? `<div class="job-info">📦 ${job.product}</div>` : ''}
                     ${phoneDisplay ? `<div class="job-info">📞 ${phoneDisplay}</div>` : ''}
                     ${timeInfo ? `<div class="job-info">${timeInfo}</div>` : ''}
+                    ${isFailedJob ? `<div class="job-info" style="color: #f44336; font-weight: 600;">📋 Tap to view failure details</div>` : ''}
                 </div>
             `;
 
@@ -1881,7 +2272,7 @@
 
         // Failed deliveries tab
         function updateFailedTab() {
-            const failedJobs = allJobs.filter(job => job.status === 'failed');
+            const failedJobs = allJobs.filter(job => getDisplayStatus(job) === 'failed');
             const failedList = document.getElementById('failedList');
             failedList.innerHTML = '';
 
@@ -1937,8 +2328,14 @@
         function calculateStats() {
             const totalRuns = Object.keys(allRuns).length;
             const totalJobs = allJobs.length;
-            const completedJobs = allJobs.filter(job => job.status === 'completed').length;
-            const failedJobs = allJobs.filter(job => job.status === 'failed').length;
+            const completedJobs = allJobs.filter(job => {
+                const displayStatus = getDisplayStatus(job);
+                return displayStatus === 'completed';
+            }).length;
+            const failedJobs = allJobs.filter(job => {
+                const displayStatus = getDisplayStatus(job);
+                return displayStatus === 'failed';
+            }).length;
             const progressPercentage = totalJobs > 0 ? Math.round(((completedJobs + failedJobs) / totalJobs) * 100) : 0;
 
             return { totalRuns, totalJobs, completedJobs, failedJobs, progressPercentage };
@@ -2054,7 +2451,16 @@
         // Modal functions
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
-            currentEditingJob = null;
+            if (modalId === 'editJobModal') {
+                currentEditingJob = null;
+            } else if (modalId === 'statusChangeModal') {
+                currentStatusJob = null;
+            } else if (modalId === 'driverMessageModal' || modalId === 'locationModal') {
+                currentCommunicationRun = null;
+            } else if (modalId === 'messagesHistoryModal') {
+                // Clear any message details modals
+                document.querySelectorAll('.message-detail-modal').forEach(modal => modal.remove());
+            }
         }
 
 
@@ -2332,6 +2738,891 @@
                 console.error('Error unclaiming run:', error);
                 alert('Error unclaiming run');
             }
+        }
+
+        // Status Change Functions
+        let currentStatusJob = null;
+
+        function changeJobStatus(runKey, jobIndex, currentStatus) {
+            const job = allRuns[runKey]?.jobs[jobIndex];
+            if (!job) return;
+
+            currentStatusJob = { runKey, jobIndex };
+            
+            // Update display
+            document.getElementById('currentStatusDisplay').innerHTML = `
+                <div style="color: ${getStatusColor(currentStatus)};">${currentStatus.toUpperCase()}</div>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">${job.name || 'Unknown Customer'}</div>
+            `;
+            
+            // Show modal
+            document.getElementById('statusChangeModal').style.display = 'block';
+            triggerHaptic();
+        }
+
+        function updateJobStatusFromModal(newStatus) {
+            if (!currentStatusJob) return;
+            
+            closeModal('statusChangeModal');
+            updateJobStatus(currentStatusJob.runKey, currentStatusJob.jobIndex, newStatus);
+            currentStatusJob = null;
+        }
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'pending': return '#2196f3';
+                case 'started': return '#ff9800';
+                case 'completed': return '#4caf50';
+                case 'failed': return '#f44336';
+                default: return '#666';
+            }
+        }
+
+        // Failure Details Functions
+        function showFailureDetails(runKey, jobIndex) {
+            const job = allRuns[runKey]?.jobs[jobIndex];
+            if (!job) return;
+
+            const failureDetails = job.failure_details || {};
+            const content = document.getElementById('failureDetailsContent');
+            
+            let html = `
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #f44336; margin-bottom: 10px;">📋 ${job.name || 'Unknown Customer'}</h4>
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">${job.full_address || job.address || 'No address'}</div>
+                </div>
+            `;
+
+            // Failure Type
+            if (failureDetails.failure_type) {
+                html += `
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; color: #333;">Failure Type:</label>
+                        <div style="margin-top: 5px; padding: 8px; background: #fff5f5; border-radius: 6px; border-left: 3px solid #f44336;">
+                            ${failureDetails.failure_type.replace(/_/g, ' ').toUpperCase()}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Rejection Reason
+            if (failureDetails.rejection_reason || job.failure_reason) {
+                const reason = failureDetails.rejection_reason || job.failure_reason;
+                html += `
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; color: #333;">Reason:</label>
+                        <div style="margin-top: 5px; padding: 8px; background: #fff5f5; border-radius: 6px;">
+                            ${reason}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Failure Code
+            if (failureDetails.failure_code) {
+                html += `
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; color: #333;">Failure Code:</label>
+                        <div style="margin-top: 5px; padding: 8px; background: #e3f2fd; border-radius: 6px; font-family: monospace; font-weight: 600;">
+                            ${failureDetails.failure_code}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Driver Comments
+            if (failureDetails.driver_comments || job.driver_notes) {
+                const comments = failureDetails.driver_comments || job.driver_notes;
+                html += `
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; color: #333;">Driver Comments:</label>
+                        <div style="margin-top: 5px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+                            ${comments}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Timestamp
+            if (failureDetails.timestamp || job.failed_at) {
+                const timestamp = failureDetails.timestamp || (job.failed_at?.toDate ? job.failed_at.toDate() : job.failed_at);
+                const timeStr = timestamp ? new Date(timestamp).toLocaleString() : 'Unknown';
+                html += `
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; color: #333;">Failed At:</label>
+                        <div style="margin-top: 5px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+                            🕒 ${timeStr}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Photos
+            const photoUrls = failureDetails.photo_urls || [];
+            if (photoUrls.length > 0) {
+                html += `
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; color: #333;">Photos (${photoUrls.length}):</label>
+                        <div class="photo-gallery" style="margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px;">
+                `;
+                
+                photoUrls.forEach((url, index) => {
+                    html += `
+                        <div class="photo-item touchable" onclick="openFullPhoto('${url}')">
+                            <img src="${url}" alt="Failure Photo ${index + 1}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 6px;">
+                            <div style="text-align: center; font-size: 0.7rem; color: #666; margin-top: 4px;">Photo ${index + 1}</div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            } else if (failureDetails.failure_type === 'cancelled_without_photo') {
+                html += `
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; color: #333;">Photos:</label>
+                        <div style="margin-top: 5px; padding: 8px; background: #fff3e0; border-radius: 6px; color: #f57c00; font-style: italic;">
+                            📷 No photos taken (cancelled without photo)
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Action buttons
+            html += `
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                    <button class="btn-primary touchable" onclick="editJob('${runKey}', ${jobIndex})" style="margin-right: 10px;">Edit Job</button>
+                    <button class="btn-primary touchable" onclick="updateJobStatus('${runKey}', ${jobIndex}, 'pending')" style="background: #ff9800;">Reset to Pending</button>
+                </div>
+            `;
+
+            content.innerHTML = html;
+            document.getElementById('failureDetailsModal').style.display = 'block';
+            triggerHaptic();
+        }
+
+        // Driver Communication Functions
+        let currentCommunicationRun = null;
+
+        function sendMessageToCurrentRun() {
+            console.log('sendMessageToCurrentRun called, currentRunData:', currentRunData);
+            
+            if (!currentRunData) {
+                alert('No run selected - please select a run first');
+                return;
+            }
+            
+            const runNumber = currentRunData.runNumber;
+            const tabletDeviceId = currentRunData.tablet_device_id;
+            
+            if (!tabletDeviceId) {
+                alert(`Run ${runNumber} is not claimed by any device or tablet not available`);
+                return;
+            }
+            
+            currentCommunicationRun = { runNumber, deviceId: tabletDeviceId };
+            
+            // Update target info
+            document.getElementById('messageTargetInfo').innerHTML = `
+                <div>Run ${runNumber}</div>
+                <div style="font-size: 0.8rem; color: #666;">Device: ${tabletDeviceId}</div>
+            `;
+            
+            // Clear previous message
+            document.getElementById('messageText').value = '';
+            document.getElementById('messageStatus').innerHTML = '';
+            
+            // Show modal
+            document.getElementById('driverMessageModal').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('messageText').focus();
+            }, 100);
+            triggerHaptic();
+        }
+
+        function requestLocationFromCurrentRun() {
+            console.log('requestLocationFromCurrentRun called, currentRunData:', currentRunData);
+            
+            if (!currentRunData) {
+                alert('No run selected - please select a run first');
+                return;
+            }
+            
+            const runNumber = currentRunData.runNumber;
+            const tabletDeviceId = currentRunData.tablet_device_id;
+            
+            if (!tabletDeviceId) {
+                alert(`Run ${runNumber} is not claimed by any device or tablet not available`);
+                return;
+            }
+            
+            currentCommunicationRun = { runNumber, deviceId: tabletDeviceId };
+            
+            // Update target info
+            document.getElementById('locationTargetInfo').innerHTML = `
+                <div>Run ${runNumber}</div>
+                <div style="font-size: 0.8rem; color: #666;">Device: ${tabletDeviceId}</div>
+            `;
+            
+            // Reset status
+            document.getElementById('locationStatus').innerHTML = '';
+            document.getElementById('locationMapContainer').style.display = 'none';
+            
+            // Show modal
+            document.getElementById('locationModal').style.display = 'block';
+            triggerHaptic();
+        }
+
+        async function sendDriverMessage() {
+            if (!currentCommunicationRun) return;
+            
+            const messageText = document.getElementById('messageText').value.trim();
+            if (!messageText) {
+                alert('Please enter a message');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('messageStatus');
+            const button = document.querySelector('#driverMessageModal .btn-primary');
+            
+            try {
+                // Show sending status
+                statusDiv.innerHTML = '<span style="color: #ff9800;">📤 Sending message...</span>';
+                button.disabled = true;
+                button.textContent = 'Sending...';
+                
+                // Create command
+                const commandId = `msg_${Date.now()}`;
+                const commandData = {
+                    target_device: currentCommunicationRun.deviceId,
+                    source_device: "mobile_web",
+                    command: "driver_message",
+                    data: {
+                        message: messageText,
+                        sender: "Dispatch",
+                        timestamp: new Date().toISOString()
+                    },
+                    executed: false,
+                    acknowledged_at: null
+                };
+                
+                // Send to Firebase
+                await db.collection('device_commands').doc(commandId).set(commandData);
+                
+                // Success feedback
+                statusDiv.innerHTML = '<span style="color: #4caf50;">✅ Message sent successfully!</span>';
+                button.textContent = '✓ Sent';
+                button.style.background = '#4caf50';
+                triggerHaptic();
+                
+                // Play notification sound
+                playNotificationSound();
+                
+                setTimeout(() => {
+                    closeModal('driverMessageModal');
+                    // Reset button
+                    button.disabled = false;
+                    button.textContent = '📧 Send Message';
+                    button.style.background = '';
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                statusDiv.innerHTML = '<span style="color: #f44336;">❌ Failed to send message</span>';
+                button.disabled = false;
+                button.textContent = '📧 Send Message';
+            }
+        }
+
+        async function requestDriverLocation() {
+            if (!currentCommunicationRun) return;
+            
+            const statusDiv = document.getElementById('locationStatus');
+            const button = document.querySelector('#locationModal .btn-primary');
+            
+            try {
+                // Show requesting status
+                statusDiv.innerHTML = '<span style="color: #ff9800;">📍 Requesting location...</span>';
+                button.disabled = true;
+                button.textContent = 'Requesting...';
+                
+                // Create location ping command
+                const pingId = `ping_${Date.now()}`;
+                const commandData = {
+                    target_device: currentCommunicationRun.deviceId,
+                    source_device: "mobile_web",
+                    command: "location_ping",
+                    data: {
+                        requested_at: new Date().toISOString(),
+                        request_reason: "Location check from mobile"
+                    },
+                    executed: false,
+                    response: null
+                };
+                
+                // Send to Firebase
+                await db.collection('device_commands').doc(pingId).set(commandData);
+                
+                statusDiv.innerHTML = '<span style="color: #2196f3;">🔄 Waiting for response...</span>';
+                button.textContent = 'Waiting...';
+                triggerHaptic();
+                
+                // Monitor for response
+                monitorLocationResponse(pingId, 60000); // 60 second timeout
+                
+            } catch (error) {
+                console.error('Error requesting location:', error);
+                statusDiv.innerHTML = '<span style="color: #f44336;">❌ Failed to request location</span>';
+                button.disabled = false;
+                button.textContent = '📍 Request Current Location';
+            }
+        }
+
+        function monitorLocationResponse(pingId, timeout = 60000) {
+            const statusDiv = document.getElementById('locationStatus');
+            const button = document.querySelector('#locationModal .btn-primary');
+            const startTime = Date.now();
+            
+            const checkResponse = async () => {
+                try {
+                    const doc = await db.collection('device_commands').doc(pingId).get();
+                    const data = doc.data();
+                    
+                    if (data && data.executed && data.response) {
+                        // Location received!
+                        const response = data.response;
+                        statusDiv.innerHTML = '<span style="color: #4caf50;">✅ Location received!</span>';
+                        button.disabled = false;
+                        button.textContent = '📍 Request Current Location';
+                        
+                        displayLocationOnMap(response);
+                        triggerHaptic();
+                        playNotificationSound();
+                        return;
+                    }
+                    
+                    // Check timeout
+                    if (Date.now() - startTime > timeout) {
+                        statusDiv.innerHTML = '<span style="color: #ff5722;">⏰ Location request timed out</span>';
+                        button.disabled = false;
+                        button.textContent = '📍 Request Current Location';
+                        return;
+                    }
+                    
+                    // Continue monitoring
+                    setTimeout(checkResponse, 5000); // Check every 5 seconds
+                    
+                } catch (error) {
+                    console.error('Error checking location response:', error);
+                    statusDiv.innerHTML = '<span style="color: #f44336;">❌ Error checking response</span>';
+                    button.disabled = false;
+                    button.textContent = '📍 Request Current Location';
+                }
+            };
+            
+            // Start monitoring
+            setTimeout(checkResponse, 5000);
+        }
+
+        function displayLocationOnMap(locationData) {
+            const mapContainer = document.getElementById('locationMapContainer');
+            const mapDiv = document.getElementById('locationMap');
+            const infoDiv = document.getElementById('locationInfo');
+            
+            // Show map container
+            mapContainer.style.display = 'block';
+            
+            // Display location info
+            infoDiv.innerHTML = `
+                <div><strong>📍 Current Location:</strong></div>
+                <div style="margin: 5px 0;">${locationData.address || 'Address not available'}</div>
+                <div style="font-size: 0.8rem; color: #666;">
+                    Lat: ${locationData.latitude}, Lng: ${locationData.longitude}
+                </div>
+                <div style="font-size: 0.8rem; color: #666;">
+                    ${locationData.timestamp ? new Date(locationData.timestamp).toLocaleString() : ''}
+                </div>
+            `;
+            
+            // Create interactive map with pinch zoom support
+            try {
+                // Clear any existing map
+                mapDiv.innerHTML = '';
+                
+                // Create interactive Google Maps iframe
+                const iframe = document.createElement('iframe');
+                iframe.style.width = '100%';
+                iframe.style.height = '300px';
+                iframe.style.border = 'none';
+                iframe.style.borderRadius = '6px';
+                iframe.style.touchAction = 'manipulation'; // Enable touch interactions
+                
+                // Use Google Maps embed with interactive features enabled
+                iframe.src = `https://www.google.com/maps?q=${locationData.latitude},${locationData.longitude}&hl=en&z=16&output=embed&iwloc=near&t=m`;
+                iframe.setAttribute('allowfullscreen', '');
+                iframe.setAttribute('loading', 'lazy');
+                iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+                
+                // Make the map container touch-friendly
+                mapDiv.style.touchAction = 'manipulation';
+                mapDiv.style.overflow = 'hidden';
+                
+                mapDiv.appendChild(iframe);
+                
+                // Add map interaction instructions
+                const instructionsDiv = document.createElement('div');
+                instructionsDiv.style.cssText = `
+                    text-align: center;
+                    font-size: 0.8rem;
+                    color: #666;
+                    margin-top: 8px;
+                    padding: 4px;
+                `;
+                instructionsDiv.innerHTML = '👆 Tap map to interact • 🤏 Pinch to zoom';
+                mapDiv.appendChild(instructionsDiv);
+                
+            } catch (error) {
+                console.error('Error displaying map:', error);
+                mapDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 300px; background: #f5f5f5; border-radius: 6px;">
+                        <div style="text-align: center;">
+                            <div>📍 Location received</div>
+                            <div style="font-size: 0.8rem; margin-top: 5px;">Map unavailable</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function playNotificationSound() {
+            try {
+                // Create audio context for notification sound
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+                
+            } catch (error) {
+                console.log('Notification sound not supported');
+            }
+        }
+
+        // Driver Messages History Functions
+        let allDriverMessages = [];
+        let filteredDriverMessages = [];
+        
+        function formatMessageTimestamp(timestamp) {
+            console.log('Formatting timestamp:', timestamp, typeof timestamp);
+            
+            if (!timestamp) {
+                console.log('No timestamp provided');
+                return 'Unknown time';
+            }
+            
+            try {
+                let date;
+                
+                // Handle various timestamp formats
+                if (typeof timestamp === 'string') {
+                    console.log('Processing string timestamp:', timestamp);
+                    
+                    // Handle ISO string with Z
+                    if (timestamp.includes('T') && timestamp.includes('Z')) {
+                        console.log('ISO format detected');
+                        date = new Date(timestamp);
+                    }
+                    // Handle date strings like "12/08/25 10:00" from desktop app
+                    else if (timestamp.includes('/') && timestamp.includes(' ')) {
+                        console.log('Desktop date/time format detected');
+                        const parts = timestamp.split(' ');
+                        const datePart = parts[0];
+                        const timePart = parts[1];
+                        
+                        const dateNumbers = datePart.split('/');
+                        if (dateNumbers.length === 3) {
+                            let day = parseInt(dateNumbers[0]);
+                            let month = parseInt(dateNumbers[1]);
+                            let year = parseInt(dateNumbers[2]);
+                            
+                            // Handle 2-digit year
+                            if (year < 100) {
+                                year = year < 50 ? 2000 + year : 1900 + year;
+                            }
+                            
+                            // Parse time part
+                            let hour = 0, minute = 0;
+                            if (timePart) {
+                                const timeMatch = timePart.match(/(\d{1,2}):(\d{2})/);
+                                if (timeMatch) {
+                                    hour = parseInt(timeMatch[1]);
+                                    minute = parseInt(timeMatch[2]);
+                                }
+                            }
+                            
+                            // Create date
+                            date = new Date(year, month - 1, day, hour, minute, 0);
+                            console.log('Parsed desktop format to:', date);
+                        }
+                    }
+                    // Handle date-only strings like "29/07/25"
+                    else if (timestamp.includes('/')) {
+                        console.log('Date-only format detected');
+                        const dateNumbers = timestamp.split('/');
+                        if (dateNumbers.length === 3) {
+                            let day = parseInt(dateNumbers[0]);
+                            let month = parseInt(dateNumbers[1]);
+                            let year = parseInt(dateNumbers[2]);
+                            
+                            // Handle 2-digit year
+                            if (year < 100) {
+                                year = year < 50 ? 2000 + year : 1900 + year;
+                            }
+                            
+                            date = new Date(year, month - 1, day);
+                        }
+                    }
+                    // Try direct parsing
+                    else {
+                        console.log('Direct string parsing');
+                        date = new Date(timestamp);
+                    }
+                }
+                // Handle Firebase Timestamp objects
+                else if (timestamp.toDate) {
+                    console.log('Firebase timestamp detected');
+                    date = timestamp.toDate();
+                }
+                // Handle numeric timestamps
+                else if (typeof timestamp === 'number') {
+                    console.log('Numeric timestamp detected');
+                    date = new Date(timestamp);
+                }
+                // Handle Date objects
+                else if (timestamp instanceof Date) {
+                    console.log('Date object detected');
+                    date = timestamp;
+                }
+                else {
+                    console.log('Unknown timestamp format:', typeof timestamp, timestamp);
+                    return 'Unknown format';
+                }
+                
+                // Check if date is valid
+                if (!date || isNaN(date.getTime())) {
+                    console.log('Invalid date created from:', timestamp);
+                    return 'Invalid date';
+                }
+                
+                console.log('Final date object:', date);
+                
+                // Format as local date/time
+                const formatted = date.toLocaleString('en-AU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                
+                console.log('Formatted result:', formatted);
+                return formatted;
+                
+            } catch (error) {
+                console.log('Error formatting timestamp:', timestamp, error);
+                return 'Format error';
+            }
+        }
+
+        function showDriverMessagesHistory() {
+            document.getElementById('messagesHistoryModal').style.display = 'block';
+            refreshMessagesHistory();
+            triggerHaptic();
+        }
+
+        async function refreshMessagesHistory() {
+            const listDiv = document.getElementById('messagesHistoryList');
+            listDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Loading messages...</div>';
+            
+            try {
+                console.log('Attempting to load messages history...');
+                
+                // Try multiple query approaches to match desktop app
+                console.log('1. Checking device_commands collection for driver_message...');
+                const driverMessageSnapshot = await db.collection('device_commands')
+                    .where('command', '==', 'driver_message')
+                    .limit(20)
+                    .get();
+                console.log(`Found ${driverMessageSnapshot.size} driver_message commands`);
+                
+                console.log('2. Checking device_commands collection for all commands...');
+                const allCommandsSnapshot = await db.collection('device_commands')
+                    .orderBy('timestamp', 'desc')
+                    .limit(50)
+                    .get();
+                console.log(`Found ${allCommandsSnapshot.size} total commands`);
+                
+                console.log('3. Checking for message-related collections...');
+                const messageSnapshot = await db.collection('messages')
+                    .limit(20)
+                    .get();
+                console.log(`Found ${messageSnapshot.size} documents in messages collection`);
+                
+                console.log('4. Checking for driver_messages collection...');
+                const driverMessagesSnapshot = await db.collection('driver_messages')
+                    .limit(20)
+                    .get();
+                console.log(`Found ${driverMessagesSnapshot.size} documents in driver_messages collection`);
+                
+                allDriverMessages = [];
+                
+                // Process device_commands first
+                driverMessageSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    console.log('Device command document:', doc.id, data);
+                    console.log('Available timestamp fields:', {
+                        timestamp: data.timestamp,
+                        created_at: data.created_at,
+                        sent_at: data.sent_at,
+                        data_timestamp: data.data?.timestamp,
+                        rawData: data.data
+                    });
+                    
+                    // Try multiple timestamp field options
+                    let sentTimestamp = data.timestamp || data.created_at || data.sent_at || data.data?.timestamp || null;
+                    console.log('Selected sent timestamp:', sentTimestamp);
+                    
+                    allDriverMessages.push({
+                        id: doc.id,
+                        ...data,
+                        timestamp: sentTimestamp,
+                        message: data.data?.message || data.message || 'No message content',
+                        target: data.target_device || data.device_id || 'Unknown device',
+                        source: data.source_device || data.source || 'Unknown source',
+                        acknowledged: !!data.acknowledged_at || data.status === 'delivered',
+                        acknowledged_at: data.acknowledged_at || data.delivered_at,
+                        collection_source: 'device_commands'
+                    });
+                });
+                
+                // Process direct messages collection if exists
+                messageSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    console.log('Messages collection document:', doc.id, data);
+                    
+                    allDriverMessages.push({
+                        id: doc.id,
+                        ...data,
+                        timestamp: data.timestamp || data.sent_at || data.created_at || null,
+                        message: data.message || data.text || data.content || 'No message content',
+                        target: data.target_device || data.to_device || data.device_id || 'Unknown device',
+                        source: data.source_device || data.from_device || data.source || 'Unknown source',
+                        acknowledged: !!data.acknowledged_at || data.status === 'delivered' || data.status === 'read',
+                        acknowledged_at: data.acknowledged_at || data.read_at || data.delivered_at,
+                        collection_source: 'messages'
+                    });
+                });
+                
+                // Process driver_messages collection if exists
+                driverMessagesSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    console.log('Driver messages collection document:', doc.id, data);
+                    
+                    allDriverMessages.push({
+                        id: doc.id,
+                        ...data,
+                        timestamp: data.timestamp || data.sent_at || data.created_at || null,
+                        message: data.message || data.text || 'No message content',
+                        target: data.target_device || data.device || 'Unknown device',
+                        source: data.source_device || data.sender || 'Unknown source',
+                        acknowledged: !!data.acknowledged_at || data.delivered || data.status === 'delivered',
+                        acknowledged_at: data.acknowledged_at || data.delivered_at,
+                        collection_source: 'driver_messages'
+                    });
+                });
+                
+                console.log(`Total processed messages: ${allDriverMessages.length}`);
+                console.log('All messages data:', allDriverMessages);
+                
+                // Sort by timestamp (newest first)
+                allDriverMessages.sort((a, b) => {
+                    const timeA = new Date(a.timestamp || 0).getTime();
+                    const timeB = new Date(b.timestamp || 0).getTime();
+                    return timeB - timeA;
+                });
+                
+                filterMessagesHistory();
+                
+            } catch (error) {
+                console.error('Error loading messages history:', error);
+                listDiv.innerHTML = `<div style="text-align: center; padding: 20px; color: #f44336;">Error: ${error.message}</div>`;
+            }
+        }
+
+        function filterMessagesHistory() {
+            const filterStatus = document.getElementById('messageFilterStatus').value;
+            
+            if (!filterStatus) {
+                filteredDriverMessages = [...allDriverMessages];
+            } else if (filterStatus === 'sent') {
+                filteredDriverMessages = allDriverMessages;
+            } else if (filterStatus === 'acknowledged') {
+                filteredDriverMessages = allDriverMessages.filter(msg => msg.acknowledged);
+            } else if (filterStatus === 'pending') {
+                filteredDriverMessages = allDriverMessages.filter(msg => !msg.acknowledged);
+            }
+            
+            displayMessagesHistory();
+        }
+
+        function displayMessagesHistory() {
+            const listDiv = document.getElementById('messagesHistoryList');
+            
+            if (filteredDriverMessages.length === 0) {
+                const filterStatus = document.getElementById('messageFilterStatus').value;
+                let message = 'No messages found';
+                
+                if (allDriverMessages.length === 0) {
+                    message = 'No messages sent yet.<br><small style="color: #999;">Send a message to a driver to see history here.</small>';
+                } else if (filterStatus) {
+                    message = `No ${filterStatus} messages found.<br><small style="color: #999;">Try changing the filter or send more messages.</small>`;
+                }
+                
+                listDiv.innerHTML = `<div style="text-align: center; padding: 30px; color: #666;">${message}</div>`;
+                return;
+            }
+            
+            let html = '';
+            filteredDriverMessages.forEach((msg, index) => {
+                const timestamp = formatMessageTimestamp(msg.timestamp);
+                const acknowledgedTime = msg.acknowledged_at ? formatMessageTimestamp(msg.acknowledged_at) : null;
+                const deviceShort = msg.target.length > 20 ? msg.target.substring(0, 20) + '...' : msg.target;
+                const messagePreview = msg.message.length > 50 ? msg.message.substring(0, 50) + '...' : msg.message;
+                
+                const statusColor = msg.acknowledged ? '#4caf50' : '#ff9800';
+                const statusText = msg.acknowledged ? 'Acknowledged' : 'Pending';
+                const statusIcon = msg.acknowledged ? '✅' : '⏳';
+                
+                html += `
+                    <div class="message-history-item" style="
+                        border: 1px solid #e0e0e0;
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 10px;
+                        background: white;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                    " onclick="showMessageDetails('${msg.id}')">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-weight: 600; color: #333; font-size: 0.9rem;">${deviceShort}</div>
+                            <div style="color: ${statusColor}; font-size: 0.8rem; font-weight: 600;">
+                                ${statusIcon} ${statusText}
+                            </div>
+                        </div>
+                        <div style="color: #666; font-size: 0.9rem; margin-bottom: 8px; line-height: 1.3;">
+                            "${messagePreview}"
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #999;">
+                            <div>📅 Sent: ${timestamp}</div>
+                            ${acknowledgedTime ? `<div>✅ Read: ${acknowledgedTime}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            listDiv.innerHTML = html;
+        }
+
+        function showMessageDetails(messageId) {
+            const message = allDriverMessages.find(msg => msg.id === messageId);
+            if (!message) return;
+            
+            const timestamp = formatMessageTimestamp(message.timestamp);
+            const acknowledgedTime = message.acknowledged_at ? formatMessageTimestamp(message.acknowledged_at) : 'Not acknowledged';
+            
+            const detailsHtml = `
+                <div style="padding: 15px;">
+                    <h4 style="color: #1976d2; margin-bottom: 15px;">📧 Message Details</h4>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <strong>To:</strong> ${message.target}
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <strong>Message:</strong>
+                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px; margin-top: 5px;">
+                            "${message.message}"
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <strong>Sent:</strong> ${timestamp}
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <strong>Status:</strong> 
+                        <span style="color: ${message.acknowledged ? '#4caf50' : '#ff9800'};">
+                            ${message.acknowledged ? '✅ Acknowledged' : '⏳ Pending'}
+                        </span>
+                    </div>
+                    
+                    ${message.acknowledged ? `
+                        <div style="margin-bottom: 10px;">
+                            <strong>Acknowledged:</strong> ${acknowledgedTime}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            // Create a temporary modal for message details
+            const detailModal = document.createElement('div');
+            detailModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10001;
+            `;
+            
+            detailModal.innerHTML = `
+                <div style="
+                    background: white;
+                    border-radius: 12px;
+                    max-width: 90%;
+                    max-height: 90%;
+                    overflow-y: auto;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+                ">
+                    ${detailsHtml}
+                    <div style="padding: 15px; border-top: 1px solid #e0e0e0; text-align: center;">
+                        <button class="btn-primary touchable" onclick="this.closest('.message-detail-modal').remove()" style="background: #1976d2;">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            detailModal.className = 'message-detail-modal';
+            detailModal.onclick = (e) => {
+                if (e.target === detailModal) {
+                    detailModal.remove();
+                }
+            };
+            
+            document.body.appendChild(detailModal);
+            triggerHaptic();
         }
 
 
